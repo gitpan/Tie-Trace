@@ -9,7 +9,7 @@ use_ok("Tie::Trace");
   open STDERR, ">", \$err or die $!;
 
   my %hash;
-  tie %hash, "Tie::Trace::Hash", r => 1;
+  tie %hash, "Tie::Trace", r => 1;
 
   my $s;
   my $x = { hoge => 1, hoge2 => 2, hoge3 => [qw/a b c d e/],  hoge4 => \$s,};
@@ -42,7 +42,7 @@ use_ok("Tie::Trace");
   open STDERR, ">", \$err or die $!;
 
   my %hash2;
-  tie %hash2, "Tie::Trace::Hash", key => ["foo", "bar"] or die $!;
+  tie %hash2, "Tie::Trace", key => ["foo", "bar"] or die $!;
 
   $hash2{foo} = 1;
   like($err, qr/^Hash => Key: foo, Value: 1/m, '$hash{foo} = 1');
@@ -61,7 +61,7 @@ use_ok("Tie::Trace");
   open STDERR, ">", \$err or die $!;
 
   my %hash3;
-  tie %hash3, "Tie::Trace::Hash", value => ["foo", "bar"] or die $!;
+  tie %hash3, "Tie::Trace", value => ["foo", "bar"] or die $!;
 
   $hash3{oo} = "foo";
   like($err, qr/^Hash => Key: oo, Value: foo/m, '$hash{oo} = "foo"');
@@ -80,7 +80,7 @@ use_ok("Tie::Trace");
   open STDERR, ">", \$err or die $!;
 
   my %hash4;
-  tie(%hash4, "Tie::Trace::Hash", value => ["foo", "bar"], r => 0) or die $!;
+  tie(%hash4, "Tie::Trace", value => ["foo", "bar"], r => 0) or die $!;
 
   $hash4{oo} = "foo";
   like($err, qr/^Hash => Key: oo, Value: foo/m, '$hash{oo} = "foo"');

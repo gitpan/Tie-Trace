@@ -11,6 +11,10 @@ use Data::Dumper ();
 our $_carp_off = 0;
 our $AUTOLOAD;
 
+sub TIEHASH  { Tie::Trace::_tieit({}, @_); }
+sub TIEARRAY { Tie::Trace::_tieit([], @_); }
+sub TIESCALAR{ my $s; Tie::Trace::_tieit(\$s, @_); }
+
 sub AUTOLOAD{
   # proxy to Tie::Std***
   my($self, @args) = @_;
@@ -21,19 +25,36 @@ sub AUTOLOAD{
 
 sub _carp_off{ 1 };
 
+sub _matching{
+  my($self, $args, @key) = @_;
+  my $op = $self->{options} || {};
+  foreach my $k (@key){
+    my $target = $op->{$k};
+    if($target and $args->{$k}){
+      return unless grep ref $_ eq 'Regexp' ? $args->{$k} =~ $_ : $_ eq $args->{$k}, @$target;
+    }
+  }
+  return 1;
+}
+
 sub _carpit{
   my($self, %args) = @_;
-  my($filename, $line) = (caller 1)[1, 2];
+  my $caller =  $self->{options}->{caller};
+  my @caller = map $_ + 1, ref $caller ? @{$caller} : $caller;
+  my(@filename, @line);
+  foreach(@caller){
+    my($f, $l) = (caller($_))[1, 2];
+    next unless $f and $l;
+    push @filename, $f;
+    push @line, $l;
+  }
   my $class = (split /::/, ref $self)[2];
-  my $location = " in $filename at line $line.\n";
+  my $location = @line == 1 ? " at $filename[0] line $line[0]." : join "\n", map " at $filename[$_] line $line[$_].", (0 .. $#filename);
+  $location .= "\n";
   my $op = $self->{options} || {};
 
   # key/value checking
-  foreach my $k (qw/key value/){
-    if($args{$k} and my $target = $op->{$k}){
-      return unless grep ref $_ eq 'Regexp' ? $args{$k} =~ $_ : $_ eq $args{$k}, @$target;
-    }
-  }
+  return unless $self->_matching(\%args, qw/key/) and $self->_matching(\%args, qw/value/);
 
   # debug type
   my $debug = $op->{debug};
@@ -43,6 +64,9 @@ sub _carpit{
   }elsif(lc($debug) eq 'dumper'){
     $value = Data::Dumper::Dumper($args{value});
   }
+
+  # debug_value checking
+  return unless $self->_matching({debug_value => $value}, qw/debug_value/);
 
   # use scalar/array/hash ?
   return unless grep lc($class) eq lc($_) , @{$op->{use}};
@@ -60,10 +84,16 @@ sub _carpit{
 
 sub _tieit{
   my($self, $class, %arg) = @_;
-  my $ancestor = $arg{ancestor};
+  if($class =~/^Tie::Trace$/){
+    my $type = lc(ref $self);
+    substr($type, 0, 1) = uc(substr($type, 0, 1));
+    $class .= '::' . $type;
+    warn $class;
+  }
+  my $parent = $arg{parent};
   my $options;
-  if(defined $ancestor and $ancestor){
-    $options = $ancestor->{options};
+  if(defined $parent and $parent){
+    $options = $parent->{options};
   }else{
     $options = \%arg;
     unless($options->{use}){
@@ -72,11 +102,12 @@ sub _tieit{
     unless(defined $options->{r}){
       $options->{r} = 1;
     }
+    $options->{caller} ||= 0;
   }
   my $_self =
     {
      self     => $self,
-     ancestor => $ancestor,
+     parent => $parent,
      options  => $options,
     };
   bless $_self, $class;
@@ -109,26 +140,26 @@ sub _data_filter{
   unless($class or $tied){
     if(($type & 0b11001) == 1){
       my $tmp = $$structure;
-      tie $$structure, "Tie::Trace::Scalar", ancestor => $self;
+      tie $$structure, "Tie::Trace::Scalar", parent => $self;
       $$structure = Tie::Trace::_data_filter($tmp, $self);
       return $structure;
     }elsif(($type & 0b11010) == 2){
       my @tmp = @$structure;
-      tie @$structure, "Tie::Trace::Array", ancestor => $self;
+      tie @$structure, "Tie::Trace::Array", parent => $self;
       foreach my $i (0 .. $#tmp){
         $structure->[$i] = Tie::Trace::_data_filter($tmp[$i], $self);
       }
       return $structure;
     }elsif(($type & 0b11100) == 4){
       my %tmp = %$structure;
-      tie %$structure, "Tie::Trace::Hash", ancestor => $self;
+      tie %$structure, "Tie::Trace::Hash", parent => $self;
       while(my($k, $v) = each %tmp){
         $structure->{$k} = Tie::Trace::_data_filter($v, $self);
       }
       return $structure;
     }
   }
-  # tied / blessed ref / just a scalar
+  # tied variable / blessed ref / just a scalar
   return $structure;
 }
 
@@ -139,8 +170,6 @@ use warnings;
 use strict;
 
 use base qw/Tie::Trace/;
-
-sub TIEHASH{ Tie::Trace::_tieit({}, @_) }
 
 sub STORE{
   my($self, $key, $value) = @_;
@@ -157,8 +186,6 @@ use warnings;
 use strict;
 
 use base qw/Tie::Trace/;
-
-sub TIEARRAY{ Tie::Trace::_tieit([], @_); }
 
 sub STORE{
   my($self, $p, $value) = @_;
@@ -182,8 +209,6 @@ use strict;
 
 use base qw/Tie::Trace/;
 
-sub TIESCALAR{ my $s; Tie::Trace::_tieit(\$s, @_); }
-
 sub STORE{
   my($self, $value) = @_;
   $self->_carpit(value => $value)  unless $_carp_off;
@@ -198,28 +223,28 @@ Tie::Trace - easy print debugging with tie
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
     use Tie::Trace;
  
     my %hash;
-    tie %hash, "Tie::Trace::Hash";
+    tie %hash, "Tie::Trace";
  
-    $hash{hoge} = 'hogehoge'; # warn Hash => Key: hoge, Value: hogehgoe
+    $hash{hoge} = 'hogehoge'; # warn Hash => Key: hoge, Value: hogehgoe at ...
  
     my @array;
-    tie @aray, "Tie::Trace::Array";
-    push @array, "array";    # warn Array => Point: 0, Value: array
+    tie @aray, "Tie::Trace";
+    push @array, "array";    # warn Array => Point: 0, Value: array at ...
  
     my $scalar;
-    tie $scalar, "Tie::Trace::Scalar";
-    $scalar = "scalar";      # warn Scalar => Value: scalar
+    tie $scalar, "Tie::Trace";
+    $scalar = "scalar";      # warn Scalar => Value: scalar at ...
 
 =head1 DESCRIPTION
 
@@ -231,7 +256,7 @@ recursively.
 
 for example;
 
- tie %hash, "Tie::Trace::Hash";
+ tie %hash, "Tie::Trace";
  
  $hash{foo} = {a => 1, b => 2}; # warn ...
  $hash{foo}->{a} = 2            # warn ...
@@ -244,14 +269,14 @@ But This won't care blessed reference or tied value.
 
 =item key => [values/regexs]
 
- tie %hash, "Tie::Trace::Hash", key => [qw/foo bar/];
+ tie %hash, "Tie::Trace", key => [qw/foo bar/];
 
 It is for hash. You can spedify key name/regex for checking.
 Not specified/matched keys are ignored for warning.
 
 for example;
 
- tie %hash, "Tie::Trace::Hash", key => [qw/foo bar/, qr/x/];
+ tie %hash, "Tie::Trace", key => [qw/foo bar/, qr/x/];
  
  $hash{foo} = 1 # warn ...
  $hash{bar} = 1 # warn ...
@@ -260,14 +285,14 @@ for example;
 
 =item value => [contents/regexs]
 
- tie %hash, "Tie::Trace::Hash", value => [qw/foo bar/];
+ tie %hash, "Tie::Trace", value => [qw/foo bar/];
 
 You can spedify value's content/regex for checking.
 Not specified/matched are ignored for warning.
 
 for example;
 
- tie %hash, "Tie::Trace::Hash", key => [qw/foo bar/, qr/\)/];
+ tie %hash, "Tie::Trace", value => [qw/foo bar/, qr/\)/];
  
  $hash{a} = 'foo'  # warn ...
  $hash{b} = 'foo1' # *no* warnings
@@ -276,13 +301,13 @@ for example;
 
 =item use => [qw/hash array scalar/]
 
- tie %hash, "Tie::Trace::Hash", use => [qw/array/];
+ tie %hash, "Tie::Trace", use => [qw/array/];
 
 It specify check type. As default, all type will be checked.
 
 for example;
 
- tie %hash, "Tie::Trace::Hash", use => [qw/array/];
+ tie %hash, "Tie::Trace", use => [qw/array/];
  
  $hash{foo} = 1         # *no* warnings
  $hash{bar} = 1         # *no* warnings
@@ -291,19 +316,51 @@ for example;
 
 =item debug => 'dumper'/coderef
 
- tie %hash, "Tie::Trace::Hash", debug => 'dumper'
- tie %hash, "Tie::Trace::Hash", debug => sub{my($self, @v) = @_; return @v }
+ tie %hash, "Tie::Trace", debug => 'dumper'
+ tie %hash, "Tie::Trace", debug => sub{my($self, @v) = @_; return @v }
 
 It specify value representation. As default, just print value as scalar.
 You can use "dumper" or coderef. "dumper" make value show with Data::Dumper::Dumper.
 When you specify your coderef, its first argument is tied value and
 second argument is value, it should modify it and return it.
 
+=item debug_value => [contents/regexs]
+
+ tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
+
+You can spedify debugged value's content/regex for checking.
+Not specified/matched are ignored for warning.
+
+for example;
+
+ tie %hash, "Tie::Trace", debug_value => [qw/fpp bar/, qr/\)/];
+ 
+ $hash{a} = 'fpp'  # warn ...      because debugged value is foo
+ $hash{b} = 'foo'  # *no* warnings because debugged value is fpp
+ $hash{c} = 'bpp'  # warn ...      because debugged value is boo
+
 =item r => 0/1
 
- tie %hash, "Tie::Trace::Hash", r => 0;
+ tie %hash, "Tie::Trace", r => 0;
 
 If r is 0, this won't check recusively. 1 is default.
+
+=item caller => number/[numbers]
+
+ tie %hash, "Tie::Trace", caller => 2;
+
+It effects warning message.
+default is 0. If you set grater than 0, it goes upstream to check.
+
+You can specify array ref.
+
+ tie %hash, "Tie::Trace", caller => [1, 2, 3];
+
+It display following messages.
+
+ Hash => Key: key, Value:hoge at filename line 61.
+ at filename line 383.
+ at filename line 268.
 
 =back
 

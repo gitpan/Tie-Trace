@@ -1,5 +1,14 @@
 Revision history for Tie-Trace
 
+0.02    2006-09-01 02:55:00
+	change warning message
+        add caller option
+	add debug_value option
+	no need to specify variable type(::Hash, ::Array, ::Scalar)
+	fix document
+	change test name
+	some changes of internal variable name
+
 0.01    2006-08-29 21:18:49
         First version
 

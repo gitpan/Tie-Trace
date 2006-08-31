@@ -8,4 +8,4 @@ t/00-load.t
 t/boilerplate.t
 t/pod-coverage.t
 t/pod.t
-t/tie-debug.t
+t/tie-trace.t
