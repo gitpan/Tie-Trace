@@ -88,7 +88,6 @@ sub _tieit{
     my $type = lc(ref $self);
     substr($type, 0, 1) = uc(substr($type, 0, 1));
     $class .= '::' . $type;
-    warn $class;
   }
   my $parent = $arg{parent};
   my $options;
@@ -223,11 +222,11 @@ Tie::Trace - easy print debugging with tie
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -303,7 +302,8 @@ for example;
 
  tie %hash, "Tie::Trace", use => [qw/array/];
 
-It specify check type. As default, all type will be checked.
+It specify type of variable for checking.
+As default, all type will be checked.
 
 for example;
 

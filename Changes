@@ -1,5 +1,9 @@
 Revision history for Tie-Trace
 
+0.03    2006-09-01 03:47:00
+	remove no needed warning
+	add japanese document
+
 0.02    2006-09-01 02:55:00
 	change warning message
         add caller option
