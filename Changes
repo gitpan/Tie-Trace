@@ -1,5 +1,11 @@
 Revision history for Tie-Trace
 
+0.04    2006-09-03 15:32:00
+	fix document
+	add test for internal method
+	refuctor some internal method
+	can use coderef in value, key and debug_value option
+	
 0.03    2006-09-01 03:47:00
 	remove no needed warning
 	add japanese document
@@ -15,4 +21,3 @@ Revision history for Tie-Trace
 
 0.01    2006-08-29 21:18:49
         First version
-

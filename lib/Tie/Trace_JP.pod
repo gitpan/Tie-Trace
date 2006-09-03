@@ -6,7 +6,7 @@ Tie::Trace - tieで簡単printデバッギング
 
 =head1 バージョン
 
-Version 0.03
+Version 0.04
 
 =head1 概要
 
@@ -31,7 +31,7 @@ Tie::Traceはprintでバッキングに有用です。tieを使って、特定の変数に
 入れられた値を見ることが出来ます。
 
 入れられた値が、スカラ/配列/ハッシュリファレンスであれば、
-これは、Tie::Traceは再帰的にその値をチェックできます。
+Tie::Traceは再帰的にその値をチェックできます。
 
 例;
 
@@ -46,12 +46,14 @@ Tie::Traceはprintでバッキングに有用です。tieを使って、特定の変数に
 
 =over 4
 
-=item key => [values/regexs]
+=item key => [values/regexs/coderef]
 
  tie %hash, "Tie::Trace", key => [qw/foo bar/];
 
 これはハッシュのためのものです。チェックするキーの名前か、キーに対する正規表現を指定できます。
 指定された/マッチしたキーでなければ、警告の対象にならず、無視されます。
+コードリファレンスを指定した場合、コードリファレンスの第一引数は、tieされた値で、第二引数以降は値です。
+コードリファレンスが偽を返した場合、無視されます。
 
 例;
 
@@ -62,12 +64,14 @@ Tie::Traceはprintでバッキングに有用です。tieを使って、特定の変数に
  $hash{var} = 1 # *no* warnings
  $hash{_x_} = 1 # warn ...
 
-=item value => [contents/regexs]
+=item value => [contents/regexs/coderef]
 
  tie %hash, "Tie::Trace", value => [qw/foo bar/];
 
 チェックする値の内容か、値に対する正規表現を指定できます。
 指定された/マッチした値でなければ、警告の対象にならず、無視されます。
+コードリファレンスを指定した場合、コードリファレンスの第一引数は、tieされた値で、第二引数以降は値です。
+コードリファレンスが偽を返した場合、無視されます。
 
 例;
 
@@ -104,15 +108,17 @@ Tie::Traceはprintでバッキングに有用です。tieを使って、特定の変数に
 コードリファレンスを指定した場合、コードリファレンスの第一引数は、tieされた値で、第二引数以降は値です。
 コードリファレンスの実行結果が表示用の値として使われます。
 
-=item debug_value => [contents/regexs]
+=item debug_value => [contents/regexs/codref]
 
  tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
 
 valueは値に対するものでしたが、debug_valueは、debugにより加工された後の値に対するものです。
+コードリファレンスを指定した場合、コードリファレンスの第一引数は、tieされた値で、第二引数以降は値です。
+コードリファレンスが偽を返した場合、無視されます。
 
 例;
 
- tie %hash, "Tie::Trace", debug_value => [qw/fpp bar/, qr/\)/];
+ tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
  
  $hash{a} = 'fpp'  # warn ...      because debugged value is foo
  $hash{b} = 'foo'  # *no* warnings because debugged value is fpp
@@ -143,6 +149,45 @@ rが0であれば、リファレンスが入ってきた場合に、再帰的にチェックしません。デフォル
 
 =back
 
+=head1 METHODS
+
+key、 value、 debug_valueなどのオプションに渡されるコードリファレンスで使われます。
+tied 関数の戻り値のメソッドとして使われます。
+
+=over 4
+
+=item storage
+
+ tie %hash, "Tie::Trace", debug =>
+   sub {
+     my($self, $v) = @_;
+     my $storage = $self->storage;
+     return $storage;
+   };
+
+値が蓄えられているリファレンスを返します。
+
+=item parent
+
+ tie %hash, "Tie::Trace", debug =>
+   sub {
+     my($self, $v) = @_;
+     my $parent = $self->parent->storage;
+     return $parent;
+   };
+
+このメソッドは、$selfの親のtieされている値を返します。
+
+for example;
+
+ tie my %hash, "Tie::Trace";
+ my %hash2;
+ $hash{1} = \%hash2;
+ my $tied_hash2 = tied %hash2;
+ print tied %hash eq $tied_hash2->parent; # 1
+
+=back
+
 =head1 著者
 
 Ktat, C<< <atusi at pure.ne.jp> >>
@@ -157,11 +202,15 @@ your bug as I make changes.
 
 =head1 サポート
 
-You can find documentation for this module with the perldoc command.
+perldocコマンドでこのモジュールのドキュメントを見つけられます。
 
     perldoc Tie::Trace
 
-You can also look for information at:
+日本語のドキュメント(euc-jp)は下記になります。
+
+    perldoc Tie::Trace_JP
+
+また、下記からも情報を見ることが出来ます:
 
 =over 4
 

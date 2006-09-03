@@ -6,4 +6,4 @@ BEGIN {
 	use_ok( 'Tie::Trace' );
 }
 
-diag( "Testing Tie::Trace $Tie::Debug::VERSION, Perl $], $^X" );
+diag( "Testing Tie::Trace $Tie::Trace::VERSION, Perl $], $^X" );

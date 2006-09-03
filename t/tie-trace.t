@@ -6,7 +6,7 @@ use_ok("Tie::Trace");
   my $err;
   local *STDERR;
 
-  open STDERR, ">", \$err or die $!;
+  ok(open(STDERR, ">", \$err), "open");
 
   my %hash;
   tie %hash, "Tie::Trace", r => 1;
@@ -39,6 +39,7 @@ use_ok("Tie::Trace");
   eq_array([sort @{$hash{1}->{hoge3}}], [qw/a array b c d e/], "array check");
 
   close STDERR;
+
   open STDERR, ">", \$err or die $!;
 
   my %hash2;
@@ -95,3 +96,4 @@ use_ok("Tie::Trace");
   $hash4{xxx}->{xxx} = "var";
   unlike($err, qr/^Hash => Key: xxx, Value: var/m, '$hash{xxx}->{xxx} = "var"');
 }
+

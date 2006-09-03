@@ -23,18 +23,37 @@ sub AUTOLOAD{
   defined &$sub ? $sub->($self->{storage}, @args) : return;
 }
 
+sub storage{
+  my($self) = @_;
+  return $self->{storage};
+}
+
+sub parent{
+  my($self) = @_;
+  return $self->{parent};
+}
+
 sub _carp_off{ 1 };
 
-sub _matching{
-  my($self, $args, @key) = @_;
-  my $op = $self->{options} || {};
-  foreach my $k (@key){
-    my $target = $op->{$k};
-    if($target and $args->{$k}){
-      return unless grep ref $_ eq 'Regexp' ? $args->{$k} =~ $_ : $_ eq $args->{$k}, @$target;
-    }
+sub _match{
+  my($self, $test, $value) = @_;
+  if(ref $test eq 'Regexp'){
+    return $value =~ $_;
+  }elsif(ref $test eq 'CODE'){
+    return $test->($self, $value);
+  }else{
+    return $test eq $value;
   }
-  return 1;
+  return;
+}
+
+sub _matching{
+  my($self, $test, $tested) = @_;
+  return 1 unless $test;
+  if($tested){
+    return 1 if grep $self->_match($_, $tested), @$test;
+  }
+  return 0;
 }
 
 sub _carpit{
@@ -54,11 +73,22 @@ sub _carpit{
   my $op = $self->{options} || {};
 
   # key/value checking
-  return unless $self->_matching(\%args, qw/key/) and $self->_matching(\%args, qw/value/);
+  if($op->{key} or $op->{value}){
+    my $key   = $self->_matching($self->{options}->{key},   $args{key});
+    my $value = $self->_matching($self->{options}->{value}, $args{value});
+    if(($args{key} and $op->{key}) and $op->{value}){
+      return unless $key or $value;
+    }elsif($args{key} and $op->{key}){
+      return unless $key;
+    }elsif($op->{value}){
+      return unless $value;
+    }
+  }
 
   # debug type
   my $debug = $op->{debug};
   my $value = $args{value};
+
   if(ref $debug eq 'CODE'){
     $value = $debug->($self, $value);
   }elsif(lc($debug) eq 'dumper'){
@@ -66,11 +96,10 @@ sub _carpit{
   }
 
   # debug_value checking
-  return unless $self->_matching({debug_value => $value}, qw/debug_value/);
+  return unless $self->_matching($self->{options}->{debug_value}, $value);
 
   # use scalar/array/hash ?
   return unless grep lc($class) eq lc($_) , @{$op->{use}};
-
   # print warning message
   if($class eq 'Scalar'){
     warn("$class => Value: $value$location");
@@ -222,11 +251,11 @@ Tie::Trace - easy print debugging with tie
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 SYNOPSIS
 
@@ -260,18 +289,20 @@ for example;
  $hash{foo} = {a => 1, b => 2}; # warn ...
  $hash{foo}->{a} = 2            # warn ...
 
-But This won't care blessed reference or tied value.
+But This ignores blessed reference and tied value.
 
 =head1 OPTIONS
 
 =over 4
 
-=item key => [values/regexs]
+=item key => [values/regexs/coderef]
 
  tie %hash, "Tie::Trace", key => [qw/foo bar/];
 
-It is for hash. You can spedify key name/regex for checking.
+It is for hash. You can spedify key name/regex/coderef for checking.
 Not specified/matched keys are ignored for warning.
+When you give coderef, this codref receive tied value and key as arguments,
+it returns false, the key is ignored.
 
 for example;
 
@@ -282,12 +313,14 @@ for example;
  $hash{var} = 1 # *no* warnings
  $hash{_x_} = 1 # warn ...
 
-=item value => [contents/regexs]
+=item value => [contents/regexs/coderef]
 
  tie %hash, "Tie::Trace", value => [qw/foo bar/];
 
-You can spedify value's content/regex for checking.
+You can spedify value's content/regex/coderef for checking.
 Not specified/matched are ignored for warning.
+When you give coderef, this codref receive tied value and value as arguments,
+it returns false, the value is ignored.
 
 for example;
 
@@ -302,7 +335,7 @@ for example;
 
  tie %hash, "Tie::Trace", use => [qw/array/];
 
-It specify type of variable for checking.
+It specify type(scalar, array or hash) of variable for checking.
 As default, all type will be checked.
 
 for example;
@@ -324,16 +357,18 @@ You can use "dumper" or coderef. "dumper" make value show with Data::Dumper::Dum
 When you specify your coderef, its first argument is tied value and
 second argument is value, it should modify it and return it.
 
-=item debug_value => [contents/regexs]
+=item debug_value => [contents/regexs/coderef]
 
  tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
 
 You can spedify debugged value's content/regex for checking.
 Not specified/matched are ignored for warning.
+When you give coderef, this codref receive tied value and value as arguments,
+it returns false, the value is ignored.
 
 for example;
 
- tie %hash, "Tie::Trace", debug_value => [qw/fpp bar/, qr/\)/];
+ tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
  
  $hash{a} = 'fpp'  # warn ...      because debugged value is foo
  $hash{b} = 'foo'  # *no* warnings because debugged value is fpp
@@ -364,6 +399,45 @@ It display following messages.
 
 =back
 
+=head1 METHODS
+
+It is used in coderef which is passed for options, for example,
+key, value and/or debug_value or as the method of the returned of tied fucntion.
+
+=over 4
+
+=item storage
+
+ tie %hash, "Tie::Trace", debug =>
+   sub {
+     my($self, $v) = @_;
+     my $storage = $self->storage;
+     return $storage;
+   };
+
+This returns reference in which value(s) stored.
+
+=item parent
+
+ tie %hash, "Tie::Trace", debug =>
+   sub {
+     my($self, $v) = @_;
+     my $parent = $self->parent->storage;
+     return $parent;
+   };
+
+This method returns $self's parent tied value.
+
+for example;
+
+ tie my %hash, "Tie::Trace";
+ my %hash2;
+ $hash{1} = \%hash2;
+ my $tied_hash2 = tied %hash2;
+ print tied %hash eq $tied_hash2->parent; # 1
+
+=back
+
 =head1 AUTHOR
 
 Ktat, C<< <atusi at pure.ne.jp> >>
@@ -381,6 +455,11 @@ your bug as I make changes.
 You can find documentation for this module with the perldoc command.
 
     perldoc Tie::Trace
+
+You can also find documentation written in Japanese(euc-jp) for this module
+with the perldoc command.
+
+    perldoc Tie::Trace_JP
 
 You can also look for information at:
 
@@ -404,7 +483,7 @@ L<http://search.cpan.org/dist/Tie-Trace>
 
 =back
 
-=head1 COPYRIGHT & LICENSE
+=head1 著作権 & ライセンス
 
 Copyright 2006 Ktat, all rights reserved.
 
