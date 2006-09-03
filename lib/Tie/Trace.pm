@@ -251,11 +251,11 @@ Tie::Trace - easy print debugging with tie
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 SYNOPSIS
 
@@ -483,7 +483,7 @@ L<http://search.cpan.org/dist/Tie-Trace>
 
 =back
 
-=head1 著作権 & ライセンス
+=head1 COPYRIGHT & LICENSE
 
 Copyright 2006 Ktat, all rights reserved.
 

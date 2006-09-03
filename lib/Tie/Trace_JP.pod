@@ -6,7 +6,7 @@ Tie::Trace - tieで簡単printデバッギング
 
 =head1 バージョン
 
-Version 0.04
+Version 0.05
 
 =head1 概要
 
@@ -232,7 +232,7 @@ L<http://search.cpan.org/dist/Tie-Trace>
 
 =back
 
-=head1 COPYRIGHT & LICENSE
+=head1 著作権 & ライセンス
 
 Copyright 2006 Ktat, all rights reserved.
 

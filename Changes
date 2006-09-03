@@ -1,5 +1,8 @@
 Revision history for Tie-Trace
 
+0.05    2006-09-04 01:39:00
+	fix document
+
 0.04    2006-09-03 15:32:00
 	fix document
 	add test for internal method
