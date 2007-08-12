@@ -2,8 +2,8 @@ Tie-Trace
 
 DESCRIPTION
 
-This is usefull for print debugging. Using tie mechanism,
-you can see sotred value for the specified variable.
+This is useful for print debugging. Using tie mechanism,
+you can see stored value for the specified variable.
 
 INSTALLATION
 
@@ -36,7 +36,7 @@ You can also look for information at:
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2006 Ktat
+Copyright (C) 2006-2007 Ktat
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

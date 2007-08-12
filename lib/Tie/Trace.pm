@@ -1,19 +1,28 @@
 package Tie::Trace;
 
 use warnings;
+use PadWalker;
 use strict;
 use Tie::Hash ();
 use Tie::Array ();
 use Tie::Scalar ();
 use Carp ();
 use Data::Dumper ();
+use base qw/Exporter/;
 
-our $_carp_off = 0;
+use constant SCALAR    => 0;
+use constant SCALARREF => 1;
+use constant ARRAYREF  => 2;
+use constant HASHREF   => 4;
+use constant BLESSED   => 8;
+use constant TIED      => 16;
+
+our @EXPORT_OK  = ('watch');
+our %EXPORT_TAGS = (all => \@EXPORT_OK);
 our $AUTOLOAD;
-
-sub TIEHASH  { Tie::Trace::_tieit({}, @_); }
-sub TIEARRAY { Tie::Trace::_tieit([], @_); }
-sub TIESCALAR{ my $s; Tie::Trace::_tieit(\$s, @_); }
+our %OPTIONS = (debug => 'dumper');
+our $QUIET     = 0;
+our $_CARP_OFF = 0;
 
 sub AUTOLOAD{
   # proxy to Tie::Std***
@@ -21,6 +30,43 @@ sub AUTOLOAD{
   my($class, $method) = (split /::/, $AUTOLOAD)[2, 3];
   my $sub = \&{'Tie::Std' . $class . '::' . $method};
   defined &$sub ? $sub->($self->{storage}, @args) : return;
+}
+
+sub TIEHASH  { Tie::Trace::_tieit({}, @_); }
+sub TIEARRAY { Tie::Trace::_tieit([], @_); }
+sub TIESCALAR{ my $tmp; Tie::Trace::_tieit(\$tmp, @_); }
+
+sub watch(\[$@%]@){
+  my $s  = shift;
+  my $s_type = ref $s;
+  my $s_ = $s;
+
+  if($s_type eq 'SCALAR'){
+    $s_ = $$s;
+  }elsif($s_type eq 'ARRAY'){
+    $s_ = [ @$s ];
+  }elsif($s_type eq 'HASH'){
+    $s_ = { %$s };
+  }
+
+  Carp::croak("must pass one argument.") unless $s;
+  my @options = @_;
+  my $var_name;
+  eval{
+    $var_name = PadWalker::var_name(1, $s);
+  };
+  my $pkg = defined $var_name ? (caller)[0] : undef;
+  my $tied_value = tie $s_type eq 'SCALAR' ? $$s : $s_type eq 'ARRAY' ? @$s : %$s, "Tie::Trace", var => $var_name, pkg => $pkg, @options;
+  local $_CARP_OFF = 1;
+
+  if($s_type eq 'SCALAR'){
+    $$s = $s_;
+  }elsif($s_type eq 'ARRAY'){
+    @$s = @$s_;
+  }elsif($s_type eq 'HASH'){
+    %$s = %$s_;
+  }
+  return $tied_value;
 }
 
 sub storage{
@@ -58,18 +104,9 @@ sub _matching{
 
 sub _carpit{
   my($self, %args) = @_;
-  my $caller =  $self->{options}->{caller};
-  my @caller = map $_ + 1, ref $caller ? @{$caller} : $caller;
-  my(@filename, @line);
-  foreach(@caller){
-    my($f, $l) = (caller($_))[1, 2];
-    next unless $f and $l;
-    push @filename, $f;
-    push @line, $l;
-  }
+  return if $QUIET;
+
   my $class = (split /::/, ref $self)[2];
-  my $location = @line == 1 ? " at $filename[0] line $line[0]." : join "\n", map " at $filename[$_] line $line[$_].", (0 .. $#filename);
-  $location .= "\n";
   my $op = $self->{options} || {};
 
   # key/value checking
@@ -86,33 +123,92 @@ sub _carpit{
   }
 
   # debug type
-  my $debug = $op->{debug};
-  my $value = $args{value};
+  my $value = $self->_debug_message($args{value}, $op->{debug}, $args{filter});
+  # debug_value checking
+  return unless $self->_matching($self->{options}->{debug_value}, $value);
+  # use scalar/array/hash ?
+  return unless grep lc($class) eq lc($_) , @{$op->{use}};
+  # create warning message
+  my $watch_msg = '';
+  my $msg = $self->_output_message($class, $value, \%args);
+  if(defined $self->{options}->{pkg}){
+    $watch_msg = sprintf("%s:: %s", @{$self->{options}}{qw/pkg var/});
+  }else{
+    $msg =~ s/^ => //;
+  }
+  warn $watch_msg . $msg . "\n";
+}
+
+sub _output_message{
+  my($self, $class, $value, $args) = @_;
+  my($msg, @msg) = ('');
+
+  my $caller    =  $self->{options}->{caller};
+  my $_caller_n = (caller 1)[0] =~ /^Tie::Trace/ ? 2 : 1;
+  my @caller = map $_ + $_caller_n, ref $caller ? @{$caller} : $caller;
+
+  my(@filename, @line);
+  foreach(@caller){
+    my($f, $l) = (caller($_))[1, 2];
+    next unless $f and $l;
+
+    push @filename, $f;
+    push @line, $l;
+  }
+  my $location = @line == 1 ? " at $filename[0] line $line[0]." :
+                              join "\n", map " at $filename[$_] line $line[$_].", (0 .. $#filename);
+  my($_p, $p) = ($self, $self->parent);
+  while($p){
+    my $s_type = ref $p->{storage};
+    my $s = $p->{storage};
+    if($s_type eq 'HASH'){
+      push @msg, "{$_p->{__key}}";
+    }elsif($s_type eq 'ARRAY'){
+      push @msg, "[$_p->{__point}]";
+    }
+    $_p = $p;
+    last if ! ref $p or ! ($p = $p->parent);
+  }
+  $msg = @msg > 0 ? ' => ' . join "", reverse @msg : "";
+
+
+  $value ||= '';
+  if ($class eq 'Scalar') {
+    return("${msg} => $value$location");
+  } elsif ($class eq 'Array') {
+    unless(defined $args->{point}){
+      $msg =~ s/^( => )(.+)$/$1\@\{$2\}/;
+      return("$msg => $value$location");
+    }else{
+      return("${msg}[$args->{point}] => $value$location");
+    }
+  } elsif ($class eq 'Hash') {
+    return("${msg}" . (! $self->{options}->{pkg} || @msg ? "" : " => "). "{$args->{key}} => $value$location");
+  }
+}
+
+sub _debug_message{
+  my($self, $value, $debug, $filter) = @_;
 
   if(ref $debug eq 'CODE'){
     $value = $debug->($self, $value);
   }elsif(lc($debug) eq 'dumper'){
-    $value = Data::Dumper::Dumper($args{value});
+    local $Data::Dumper::Terse = 1;
+    local $Data::Dumper::Indent = 0;
+    local $Data::Dumper::Deparse = 1;
+    $value = Data::Dumper::Dumper($value);
+    if(defined $filter){
+       $filter->($value);
+    }
   }
-
-  # debug_value checking
-  return unless $self->_matching($self->{options}->{debug_value}, $value);
-
-  # use scalar/array/hash ?
-  return unless grep lc($class) eq lc($_) , @{$op->{use}};
-  # print warning message
-  if($class eq 'Scalar'){
-    warn("$class => Value: $value$location");
-  }elsif($class eq 'Array'){
-    $args{point} ||= $#{$self->{storage}} + 1;
-    warn("$class => Point: $args{point}, Value: $value$location");
-  }elsif($class eq 'Hash'){
-    warn("$class => Key: $args{key}, Value: $value$location");
-  }
+  return $value;
 }
 
-sub _tieit{
+sub _tieit {
   my($self, $class, %arg) = @_;
+  foreach (keys %OPTIONS){
+    $arg{$_} = $OPTIONS{$_} if not exists $arg{$_};
+  }
   if($class =~/^Tie::Trace$/){
     my $type = lc(ref $self);
     substr($type, 0, 1) = uc(substr($type, 0, 1));
@@ -134,22 +230,23 @@ sub _tieit{
   }
   my $_self =
     {
-     self     => $self,
-     parent => $parent,
-     options  => $options,
+     self    => $self,
+     parent  => $parent,
+     options => $options,
     };
+  $_self->{__key}   = delete $arg{__key}   if exists $arg{__key};
+  $_self->{__point} = delete $arg{__point} if exists $arg{__point};
   bless $_self, $class;
   return $_self;
 }
 
 sub _data_filter{
-  my($structure, $self) = @_;
+  my($structure, $self, $parent_info) = @_;
   return $structure unless $self->{options}->{r};
+  $parent_info ||= {};
 
   my $ref = ref $structure;
-  # 0 ... scalar,  1 ... scalarref, 2 ... arrayref
-  # 4 ... hashref, 8 ... blessed  , 16 .. tied
-  my %test = (1 => 'SCALAR', 2 => 'ARRAY', 4 => 'HASH');
+  my %test = (SCALARREF() => 'SCALAR', ARRAYREF() => 'ARRAY', HASHREF() => 'HASH');
   my $type = 0;
   my($class, $tied);
   if(defined $ref){
@@ -158,31 +255,31 @@ sub _data_filter{
         $type = $i;
         last;
       }elsif(defined $structure and $structure =~/=$test{$i}/){
-        $tied = tied($i == 1 ? $$structure : $i == 2 ? @$structure : $structure);
-        $type = $i | 8 | ($tied ? 16 : 0);
+        $tied = tied($i == SCALARREF ? $$structure : $i == ARRAYREF ? @$structure : $structure);
+        $type = $i | BLESSED | ($tied ? TIED : 0);
         $class = $ref;
         last;
       }
     }
   }
   unless($class or $tied){
-    if(($type & 0b11001) == 1){
+    if(($type & 0b11001) == SCALARREF){
       my $tmp = $$structure;
-      tie $$structure, "Tie::Trace::Scalar", parent => $self;
+      tie $$structure, "Tie::Trace::Scalar", parent => $self, %$parent_info;
       $$structure = Tie::Trace::_data_filter($tmp, $self);
       return $structure;
-    }elsif(($type & 0b11010) == 2){
+    }elsif(($type & 0b11010) == ARRAYREF){
       my @tmp = @$structure;
-      tie @$structure, "Tie::Trace::Array", parent => $self;
+      tie @$structure, "Tie::Trace::Array", parent => $self, %$parent_info;
       foreach my $i (0 .. $#tmp){
-        $structure->[$i] = Tie::Trace::_data_filter($tmp[$i], $self);
+        $structure->[$i] = Tie::Trace::_data_filter($tmp[$i], $self, {__point => $i});
       }
       return $structure;
-    }elsif(($type & 0b11100) == 4){
+    }elsif(($type & 0b11100) == HASHREF){
       my %tmp = %$structure;
-      tie %$structure, "Tie::Trace::Hash", parent => $self;
+      tie %$structure, "Tie::Trace::Hash", parent => $self, %$parent_info;;
       while(my($k, $v) = each %tmp){
-        $structure->{$k} = Tie::Trace::_data_filter($v, $self);
+        $structure->{$k} = Tie::Trace::_data_filter($v, $self, {__key => $k});
       }
       return $structure;
     }
@@ -201,11 +298,18 @@ use base qw/Tie::Trace/;
 
 sub STORE{
   my($self, $key, $value) = @_;
-  $self->_carpit(key => $key, value => $value)  unless $_carp_off;
-  local $_carp_off = $self->_carp_off();
-  Tie::Trace::_data_filter($value, $self);
+  $self->_carpit(key => $key, value => $value)  unless $_CARP_OFF;
+  local $_CARP_OFF = $self->_carp_off();
+  Tie::Trace::_data_filter($value, $self, {__key => $key});
   $self->{storage}->{$key} = $value;
 };
+
+sub DELETE {
+  my($self, $key) = @_;
+  $self->_carpit(key => $key, value => 'DELETED', filter => sub{$_[0] =~ s/\'(.+)\'$/$1/})  unless $_CARP_OFF;
+  delete $self->{storage}->{$key};
+}
+
 
 # Array /////////////////////////
 package Tie::Trace::Array;
@@ -217,16 +321,79 @@ use base qw/Tie::Trace/;
 
 sub STORE{
   my($self, $p, $value) = @_;
-  $self->_carpit(point => $p, value => $value)  unless $_carp_off;
-  local $_carp_off = Tie::Trace->_carp_off();
-  Tie::Trace::_data_filter($value, $self);
+  $self->_carpit(point => $p, value => $value)  unless $_CARP_OFF;
+  local $_CARP_OFF = Tie::Trace->_carp_off();
+  Tie::Trace::_data_filter($value, $self, {__point => $p});
   $self->{storage}->[$p] = $value;
+}
+
+sub DELETE{
+  my($self, $p) = @_;
+  $self->_carpit(point => $p, value => 'DELETED', filter => sub{$_[0] =~ s/\'(.*)\'$/$1/})  unless $_CARP_OFF;
+  local $_CARP_OFF = Tie::Trace->_carp_off();
+  delete ${$self->{storage}}[$p];
+}
+
+sub SPLICE{
+  my $self  = shift;
+  my $sz  = @{$self->{storage}};
+  my $off = @_ ? shift : 0;
+  my $fetchsize = $self->FETCHSIZE;
+  my $caller_pkg = (caller)[0];
+  my $func = "";
+  if($caller_pkg eq "Tie::Trace::Array"){
+    $func = (caller 1)[3];
+    $func =~s/^Tie::Trace::Array:://;
+  }
+  $off   += $sz if $off < 0;
+  my $len = @_ ? shift : $sz - $off;
+  my $to  = $off + $len -1;
+  my $p = $off eq $to ? $off : $off < $to ? "$off .. $to" : $off;
+  my @point = $func ? () : (point => $p);
+  $self->_carpit(@point, value => \@_, filter => sub {$_[0] =~ s/^\[(.*)\]$/$func\($1\)/} )  unless $_CARP_OFF;
+  local $_CARP_OFF = Tie::Trace->_carp_off();
+  if(@_){
+    my $cnt = 0;
+    foreach(@_){
+      Tie::Trace::_data_filter($_, $self, {__point => $off + $cnt++});
+    }
+  }
+  my $ret = splice(@{$self->{storage}}, $off, $len, @_);
+  if(@_ != $len){
+    my $diff = scalar @_ - $len;
+    local $_CARP_OFF = Tie::Trace->_carp_off();
+    for(my $i = 0;$i < @{$self->{storage}}; $i++){
+      my $value = $self->{storage}->[$i];
+      Tie::Trace::_data_filter($value, $self, {__point => $i});
+      $self->{storage}->[$i] = $value;
+    }
+  }
+  return $ret;
+}
+
+sub FETCHSIZE{
+  my($self) = shift;
+  return scalar @{$self->{storage} ||= []};
 }
 
 sub PUSH{
   my($self, @value) = @_;
-  my $i   = $self->FETCHSIZE;
-  $self->STORE($i++, shift(@value)) while @value;
+  return $self->SPLICE($self->FETCHSIZE, 0, @value);
+}
+
+sub UNSHIFT{
+  my($self, @value) = @_;
+  return $self->SPLICE(0, 0, @value);
+}
+
+sub POP{
+  my($self) = @_;
+  return $self->SPLICE(-1);
+}
+
+sub SHIFT{
+  my($self) = @_;
+  return $self->SPLICE(0, 1);
 }
 
 # Scalar /////////////////////////
@@ -239,74 +406,102 @@ use base qw/Tie::Trace/;
 
 sub STORE{
   my($self, $value) = @_;
-  $self->_carpit(value => $value)  unless $_carp_off;
-  local $_carp_off = Tie::Trace->_carp_off();
+  $self->_carpit(value => $value)  unless $_CARP_OFF;
+  local $_CARP_OFF = Tie::Trace->_carp_off();
   Tie::Trace::_data_filter($value, $self);
   ${$self->{storage}} = $value;
 };
 
 =head1 NAME
 
-Tie::Trace - easy print debugging with tie
+Tie::Trace - easy print debugging with tie, for watching variable
 
 =head1 VERSION
 
-Version 0.05
+Version 0.06
 
 =cut
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 =head1 SYNOPSIS
 
-    use Tie::Trace;
+    use Tie::Trace qw/watch/; # or qw/:all/
  
-    my %hash;
-    tie %hash, "Tie::Trace";
+    my %hash = (key => 'value');
+    watch %hash;
  
-    $hash{hoge} = 'hogehoge'; # warn Hash => Key: hoge, Value: hogehgoe at ...
+    $hash{hoge} = 'hogehoge'; # warn "main:: %hash => {hoge} => hogehgoe at ..."
  
     my @array;
-    tie @aray, "Tie::Trace";
-    push @array, "array";    # warn Array => Point: 0, Value: array at ...
+    tie @array;
+    push @array, "array";    # warn "main:: @array [0] => array at ..."
  
     my $scalar;
-    tie $scalar, "Tie::Trace";
-    $scalar = "scalar";      # warn Scalar => Value: scalar at ...
+    watch $scalar;
+    $scalar = "scalar";      # warn "main:: $scalar => scalar at ..."
 
 =head1 DESCRIPTION
 
-This is usefull for print debugging. Using tie mechanism,
-you can see sotred value for the specified variable.
+This is useful for print debugging. Using tie mechanism,
+you can see stored/deleted value for the specified variable.
 
 If the stored value is scalar/array/hash ref, this can check
 recursively.
 
 for example;
 
- tie %hash, "Tie::Trace";
+ watch %hash;
  
- $hash{foo} = {a => 1, b => 2}; # warn ...
- $hash{foo}->{a} = 2            # warn ...
+ $hash{foo} = {a => 1, b => 2}; # warn "main:: %hash {foo} => {a => 1, b => 2}"
+ $hash{foo}->{a} = 2            # warn "main:: %hash {foo}{a} => 2"
 
 But This ignores blessed reference and tied value.
 
+=head1 FUNCTION
+
+This provides one function C<watch> from version 0.06.
+Then you should use only this function. Don't use C<tie> function instead.
+
+=over 4
+
+=item watch
+
+ watch $scalar, %options;
+ watch @array, %options;
+ watch %hash, %options;
+
+When you C<watch> variables and value is stored/delete in the variables,
+warn the message like as the following.
+
+ main:: %hash => {key} => value at ...
+
+If the variables has values before watch, it is no problem. Tie::Trace work well.
+
+ my %hash = (key => 'value');
+ watch %hash;
+
+=back
+
 =head1 OPTIONS
+
+You can use C<watch> with some options.
+If you want global options, see L<GLOBAL VARIABLES>.
 
 =over 4
 
 =item key => [values/regexs/coderef]
 
- tie %hash, "Tie::Trace", key => [qw/foo bar/];
+ watch %hash, key => [qw/foo bar/];
 
-It is for hash. You can spedify key name/regex/coderef for checking.
+It is for hash. You can specify key name/regex/coderef for checking.
 Not specified/matched keys are ignored for warning.
 When you give coderef, this codref receive tied value and key as arguments,
 it returns false, the key is ignored.
 
 for example;
 
- tie %hash, "Tie::Trace", key => [qw/foo bar/, qr/x/];
+ watch %hash, key => [qw/foo bar/, qr/x/];
  
  $hash{foo} = 1 # warn ...
  $hash{bar} = 1 # warn ...
@@ -315,16 +510,16 @@ for example;
 
 =item value => [contents/regexs/coderef]
 
- tie %hash, "Tie::Trace", value => [qw/foo bar/];
+ watch %hash, value => [qw/foo bar/];
 
-You can spedify value's content/regex/coderef for checking.
+You can specify value's content/regex/coderef for checking.
 Not specified/matched are ignored for warning.
 When you give coderef, this codref receive tied value and value as arguments,
 it returns false, the value is ignored.
 
 for example;
 
- tie %hash, "Tie::Trace", value => [qw/foo bar/, qr/\)/];
+ watch %hash, value => [qw/foo bar/, qr/\)/];
  
  $hash{a} = 'foo'  # warn ...
  $hash{b} = 'foo1' # *no* warnings
@@ -340,7 +535,7 @@ As default, all type will be checked.
 
 for example;
 
- tie %hash, "Tie::Trace", use => [qw/array/];
+ watch %hash, use => [qw/array/];
  
  $hash{foo} = 1         # *no* warnings
  $hash{bar} = 1         # *no* warnings
@@ -349,26 +544,27 @@ for example;
 
 =item debug => 'dumper'/coderef
 
- tie %hash, "Tie::Trace", debug => 'dumper'
- tie %hash, "Tie::Trace", debug => sub{my($self, @v) = @_; return @v }
+ watch %hash, debug => 'dumper'
+ watch %hash, debug => sub{my($self, @v) = @_; return @v }
 
-It specify value representation. As default, just print value as scalar.
-You can use "dumper" or coderef. "dumper" make value show with Data::Dumper::Dumper.
+It specify value representation. As default, "dumper" is set.
+"dumper" makes value show with Data::Dumper::Dumper format(but ::Terse = 0 and ::Indent = 0).
+You can use coderef instead of "dumper".
 When you specify your coderef, its first argument is tied value and
 second argument is value, it should modify it and return it.
 
 =item debug_value => [contents/regexs/coderef]
 
- tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
+ watch %hash, debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
 
-You can spedify debugged value's content/regex for checking.
+You can specify debugged value's content/regex for checking.
 Not specified/matched are ignored for warning.
 When you give coderef, this codref receive tied value and value as arguments,
 it returns false, the value is ignored.
 
 for example;
 
- tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
+ watch %hash, debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
  
  $hash{a} = 'fpp'  # warn ...      because debugged value is foo
  $hash{b} = 'foo'  # *no* warnings because debugged value is fpp
@@ -378,18 +574,18 @@ for example;
 
  tie %hash, "Tie::Trace", r => 0;
 
-If r is 0, this won't check recusively. 1 is default.
+If r is 0, this won't check recursively. 1 is default.
 
 =item caller => number/[numbers]
 
- tie %hash, "Tie::Trace", caller => 2;
+ watch %hash, caller => 2;
 
 It effects warning message.
 default is 0. If you set grater than 0, it goes upstream to check.
 
 You can specify array ref.
 
- tie %hash, "Tie::Trace", caller => [1, 2, 3];
+ watch %hash, caller => [1, 2, 3];
 
 It display following messages.
 
@@ -402,13 +598,13 @@ It display following messages.
 =head1 METHODS
 
 It is used in coderef which is passed for options, for example,
-key, value and/or debug_value or as the method of the returned of tied fucntion.
+key, value and/or debug_value or as the method of the returned of tied function.
 
 =over 4
 
 =item storage
 
- tie %hash, "Tie::Trace", debug =>
+ watch %hash, debug =>
    sub {
      my($self, $v) = @_;
      my $storage = $self->storage;
@@ -419,7 +615,7 @@ This returns reference in which value(s) stored.
 
 =item parent
 
- tie %hash, "Tie::Trace", debug =>
+ watch %hash, debug =>
    sub {
      my($self, $v) = @_;
      my $parent = $self->parent->storage;
@@ -430,7 +626,7 @@ This method returns $self's parent tied value.
 
 for example;
 
- tie my %hash, "Tie::Trace";
+ watch my %hash;
  my %hash2;
  $hash{1} = \%hash2;
  my $tied_hash2 = tied %hash2;
@@ -438,9 +634,41 @@ for example;
 
 =back
 
+=head1 GLOBAL VARIABLES
+
+=over 4
+
+=item %Tie::Trace::OPTIONS
+
+This is Global options for Tie::Trace.
+If you don't specify any options, this option is used.
+If you use override options, you use C<watch> with options.
+
+ %Tie::Trace::OPTIONS = (debug => undef, ...);
+
+ # global options will be used
+ watch my %hash;
+
+ # your options will be used
+ watch my %hash2, debug => 'dumper', ...;
+
+=item $Tie::Trace::QUIET
+
+If this value is true, Tie::Trace warn nothing.
+
+ watch my %hash;
+ 
+ $hash{1} = 1; # warn something
+ 
+ $Tie::Trace::QUIET = 1;
+ 
+ $hash{1} = 2; # no warn
+
+=back
+
 =head1 AUTHOR
 
-Ktat, C<< <atusi at pure.ne.jp> >>
+Ktat, C<< <ktat.is at gmail.com> >>
 
 =head1 BUGS
 
@@ -482,6 +710,10 @@ L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Tie-Trace>
 L<http://search.cpan.org/dist/Tie-Trace>
 
 =back
+
+=head1 ACKNOWLEDGEMENT
+
+JN tell the idea of new warning message(from 0.06).
 
 =head1 COPYRIGHT & LICENSE
 
