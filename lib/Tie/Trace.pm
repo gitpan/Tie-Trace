@@ -418,11 +418,11 @@ Tie::Trace - easy print debugging with tie, for watching variable
 
 =head1 VERSION
 
-Version 0.06
+Version 0.07
 
 =cut
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 =head1 SYNOPSIS
 
@@ -453,8 +453,8 @@ for example;
 
  watch %hash;
  
- $hash{foo} = {a => 1, b => 2}; # warn "main:: %hash {foo} => {a => 1, b => 2}"
- $hash{foo}->{a} = 2            # warn "main:: %hash {foo}{a} => 2"
+ $hash{foo} = {a => 1, b => 2}; # warn "main:: %hash => {foo} => {a => 1, b => 2}"
+ $hash{foo}->{a} = 2            # warn "main:: %hash => {foo}{a} => 2"
 
 But This ignores blessed reference and tied value.
 
@@ -476,7 +476,7 @@ warn the message like as the following.
 
  main:: %hash => {key} => value at ...
 
-If the variables has values before watch, it is no problem. Tie::Trace work well.
+If the variables has values before C<watch>, it is no problem. Tie::Trace work well.
 
  my %hash = (key => 'value');
  watch %hash;
@@ -496,7 +496,7 @@ If you want global options, see L<GLOBAL VARIABLES>.
 
 It is for hash. You can specify key name/regex/coderef for checking.
 Not specified/matched keys are ignored for warning.
-When you give coderef, this codref receive tied value and key as arguments,
+When you give coderef, this coderef receive tied value and key as arguments,
 it returns false, the key is ignored.
 
 for example;
@@ -514,7 +514,7 @@ for example;
 
 You can specify value's content/regex/coderef for checking.
 Not specified/matched are ignored for warning.
-When you give coderef, this codref receive tied value and value as arguments,
+When you give coderef, this coderef receive tied value and value as arguments,
 it returns false, the value is ignored.
 
 for example;
@@ -559,7 +559,7 @@ second argument is value, it should modify it and return it.
 
 You can specify debugged value's content/regex for checking.
 Not specified/matched are ignored for warning.
-When you give coderef, this codref receive tied value and value as arguments,
+When you give coderef, this coderef receive tied value and value as arguments,
 it returns false, the value is ignored.
 
 for example;

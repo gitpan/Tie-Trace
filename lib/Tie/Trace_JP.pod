@@ -6,49 +6,76 @@ Tie::Trace - tie¤Ç´ÊÃ±print¥Ç¥Ð¥Ã¥®¥ó¥°
 
 =head1 ¥Ð¡¼¥¸¥ç¥ó
 
-Version 0.06
+Version 0.07
 
 =head1 ³µÍ×
-
-    use Tie::Trace;
+    use Tie::Trace qw/watch/; # or qw/:all/
  
-    my %hash;
-    tie %hash, "Tie::Trace";
+    my %hash = (key => 'value');
+    watch %hash;
  
-    $hash{hoge} = 'hogehoge'; # warn Hash => Key: hoge, Value: hogehgoe at ...
+    $hash{hoge} = 'hogehoge'; # warn "main:: %hash => {hoge} => hogehgoe at ..."
  
     my @array;
-    tie @array, "Tie::Trace";
-    push @array, "array";    # warn Array => Point: 0, Value: array at ...
+    tie @array;
+    push @array, "array";    # warn "main:: @array [0] => array at ..."
  
     my $scalar;
-    tie $scalar, "Tie::Trace";
-    $scalar = "scalar";      # warn Scalar => Value: scalar at ...
+    watch $scalar;
+    $scalar = "scalar";      # warn "main:: $scalar => scalar at ..."
 
 =head1 ÀâÌÀ
 
 Tie::Trace¤Ïprint¤Ç¥Ð¥Ã¥­¥ó¥°¤ËÍ­ÍÑ¤Ç¤¹¡£tie¤ò»È¤Ã¤Æ¡¢ÆÃÄê¤ÎÊÑ¿ô¤Ë
-Æþ¤ì¤é¤ì¤¿ÃÍ¤ò¸«¤ë¤³¤È¤¬½ÐÍè¤Þ¤¹¡£
+Æþ¤ì¤é¤ì¤¿/ºï½ü¤µ¤ì¤¿ÃÍ¤ò¸«¤ë¤³¤È¤¬½ÐÍè¤Þ¤¹¡£
 
 Æþ¤ì¤é¤ì¤¿ÃÍ¤¬¡¢¥¹¥«¥é/ÇÛÎó/¥Ï¥Ã¥·¥å¥ê¥Õ¥¡¥ì¥ó¥¹¤Ç¤¢¤ì¤Ð¡¢
 Tie::Trace¤ÏºÆµ¢Åª¤Ë¤½¤ÎÃÍ¤ò¥Á¥§¥Ã¥¯¤Ç¤­¤Þ¤¹¡£
 
 Îã;
 
- tie %hash, "Tie::Trace";
+ watch %hash;
  
- $hash{foo} = {a => 1, b => 2}; # warn ...
- $hash{foo}->{a} = 2            # warn ...
+ $hash{foo} = {a => 1, b => 2}; # warn "main:: %hash => {foo} => {a => 1, b => 2}"
+ $hash{foo}->{a} = 2            # warn "main:: %hash => {foo}{a} => 2"
 
 ¤Ç¤¹¤¬¡¢bless¤µ¤ì¤¿¥ê¥Õ¥¡¥ì¥ó¥¹¤ätie¤µ¤ì¤¿ÃÍ¤ÏÌµ»ë¤µ¤ì¤Þ¤¹¡£
 
+=head1 ´Ø¿ô
+
+¤³¤Î¥â¥¸¥å¡¼¥ë¤Ï¡¢version 0.06 ¤«¤é¡¢C<watch>´Ø¿ô¤òÄó¶¡¤·¤Æ¤¤¤Þ¤¹¡£
+¤³¤Î´Ø¿ô¤Î¤ß¤ò»È¤¦¤Ù¤­¤Ç¤¢¤Ã¤Æ¡¢Âå¤ï¤ê¤Ë tie ´Ø¿ô¤ò»È¤Ã¤Æ¤Ï¤¤¤±¤Þ¤»¤ó¡£
+
+=over 4
+
+=item watch
+
+ watch $scalar, %options;
+ watch @array, %options;
+ watch %hash, %options;
+
+ÊÑ¿ô¤òC<watch>¤·¡¢¤½¤³¤Ë¡¢ÃÍ¤¬Æþ¤Ã¤¿¤ê¡¢¾Ã¤µ¤ì¤¿¤ê¤¹¤ë¤È¡¢,
+²¼µ­¤Î¤è¤¦¤Ê¥á¥Ã¥»¡¼¥¸¤Ç·Ù¹ð¤·¤Þ¤¹¡£
+
+ main:: %hash => {key} => value at ...
+
+C<watch>¤¹¤ëÁ°¤ËÃÍ¤¬Æþ¤Ã¤Æ¤¤¤Æ¤â¡¢ÌäÂê¤¢¤ê¤Þ¤»¤ó¡£Tie::Trace¤Ï¤¦¤Þ¤¯Æ°¤­¤Þ¤¹¡£
+
+ my %hash = (key => 'value');
+ watch %hash;
+
+=back
+
 =head1 ¥ª¥×¥·¥ç¥ó
+
+C<watch>¤ò¥ª¥×¥·¥ç¥óÉÕ¤­¤Ç»È¤¦¤³¤È¤¬¤Ç¤­¤Þ¤¹¡£
+¥°¥í¡¼¥Ð¥ë¤Ê¥ª¥×¥·¥ç¥ó¤¬Íß¤·¤±¤ì¤Ð¡¢L<¥°¥í¡¼¥Ð¥ëÊÑ¿ô> ¤ò¸«¤Æ¤¯¤À¤µ¤¤¡£
 
 =over 4
 
 =item key => [values/regexs/coderef]
 
- tie %hash, "Tie::Trace", key => [qw/foo bar/];
+ watch %hash, key => [qw/foo bar/];
 
 ¤³¤ì¤Ï¥Ï¥Ã¥·¥å¤Î¤¿¤á¤Î¤â¤Î¤Ç¤¹¡£¥Á¥§¥Ã¥¯¤¹¤ë¥­¡¼¤ÎÌ¾Á°¤«¡¢¥­¡¼¤ËÂÐ¤¹¤ëÀµµ¬É½¸½¤ò»ØÄê¤Ç¤­¤Þ¤¹¡£
 »ØÄê¤µ¤ì¤¿/¥Þ¥Ã¥Á¤·¤¿¥­¡¼¤Ç¤Ê¤±¤ì¤Ð¡¢·Ù¹ð¤ÎÂÐ¾Ý¤Ë¤Ê¤é¤º¡¢Ìµ»ë¤µ¤ì¤Þ¤¹¡£
@@ -57,7 +84,7 @@ Tie::Trace¤ÏºÆµ¢Åª¤Ë¤½¤ÎÃÍ¤ò¥Á¥§¥Ã¥¯¤Ç¤­¤Þ¤¹¡£
 
 Îã;
 
- tie %hash, "Tie::Trace", key => [qw/foo bar/, qr/x/];
+ watch %hash, key => [qw/foo bar/, qr/x/];
  
  $hash{foo} = 1 # warn ...
  $hash{bar} = 1 # warn ...
@@ -66,7 +93,7 @@ Tie::Trace¤ÏºÆµ¢Åª¤Ë¤½¤ÎÃÍ¤ò¥Á¥§¥Ã¥¯¤Ç¤­¤Þ¤¹¡£
 
 =item value => [contents/regexs/coderef]
 
- tie %hash, "Tie::Trace", value => [qw/foo bar/];
+ watch %hash, value => [qw/foo bar/];
 
 ¥Á¥§¥Ã¥¯¤¹¤ëÃÍ¤ÎÆâÍÆ¤«¡¢ÃÍ¤ËÂÐ¤¹¤ëÀµµ¬É½¸½¤ò»ØÄê¤Ç¤­¤Þ¤¹¡£
 »ØÄê¤µ¤ì¤¿/¥Þ¥Ã¥Á¤·¤¿ÃÍ¤Ç¤Ê¤±¤ì¤Ð¡¢·Ù¹ð¤ÎÂÐ¾Ý¤Ë¤Ê¤é¤º¡¢Ìµ»ë¤µ¤ì¤Þ¤¹¡£
@@ -75,7 +102,7 @@ Tie::Trace¤ÏºÆµ¢Åª¤Ë¤½¤ÎÃÍ¤ò¥Á¥§¥Ã¥¯¤Ç¤­¤Þ¤¹¡£
 
 Îã;
 
- tie %hash, "Tie::Trace", value => [qw/foo bar/, qr/\)/];
+ watch %hash, value => [qw/foo bar/, qr/\)/];
  
  $hash{a} = 'foo'  # warn ...
  $hash{b} = 'foo1' # *no* warnings
@@ -84,14 +111,14 @@ Tie::Trace¤ÏºÆµ¢Åª¤Ë¤½¤ÎÃÍ¤ò¥Á¥§¥Ã¥¯¤Ç¤­¤Þ¤¹¡£
 
 =item use => [qw/hash array scalar/]
 
- tie %hash, "Tie::Trace", use => [qw/array/];
+ watch %hash, use => [qw/array/];
 
 ¥Á¥§¥Ã¥¯¤¹¤ëÊÑ¿ô¤Î¥¿¥¤¥×(¥¹¥«¥é¡¼¡¢ÇÛÎó¡¢¥Ï¥Ã¥·¥å)¤ò»ØÄê¤·¤Þ¤¹¡£
 ¥Ç¥Õ¥©¥ë¥È¤Ç¤Ï¡¢Á´¤Æ¤Î¥¿¥¤¥×¤¬¥Á¥§¥Ã¥¯¤µ¤ì¤Þ¤¹¡£
 
 Îã;
 
- tie %hash, "Tie::Trace", use => [qw/array/];
+ watch %hash, use => [qw/array/];
  
  $hash{foo} = 1         # *no* warnings
  $hash{bar} = 1         # *no* warnings
@@ -100,17 +127,18 @@ Tie::Trace¤ÏºÆµ¢Åª¤Ë¤½¤ÎÃÍ¤ò¥Á¥§¥Ã¥¯¤Ç¤­¤Þ¤¹¡£
 
 =item debug => 'dumper'/coderef
 
- tie %hash, "Tie::Trace", debug => 'dumper'
- tie %hash, "Tie::Trace", debug => sub{my($self, @v) = @_; return @v }
+ watch %hash, debug => 'dumper'
+ watch %hash, debug => sub{my($self, @v) = @_; return @v }
 
-ÃÍ¤ÎÉ½¸½¤ò»ØÄê¤Ç¤­¤Þ¤¹. ¥Ç¥Õ¥©¥ë¥È¤Ç¤Ï¤¿¤À¤Î¥¹¥«¥é¤È¤·¤ÆÉ½¸½¤µ¤ì¤Þ¤¹¡£
-"dumper" ¤â¤·¤¯¤Ï¡¢ ¥³¡¼¥É¥ê¥Õ¥¡¥ì¥ó¥¹¤ò»È¤¨¤Þ¤¹¡£"dumper" ¤Ï¡¢Data::Dumper::Dumper¤òÃÍ¤Ë¤«¤±¤¿·ë²Ì¤Ë¤Ê¤ê¤Þ¤¹¡£
+ÃÍ¤ÎÉ½¸½¤ò»ØÄê¤Ç¤­¤Þ¤¹. ¥Ç¥Õ¥©¥ë¥È¤Ç¤Ï"dumper"¤¬¥»¥Ã¥È¤µ¤ì¤Æ¤¤¤Þ¤¹¡£
+"dumper"¤Ï¡¢ÃÍ¤òData::Dumper::Dumper¤Î¥Õ¥©¡¼¥Þ¥Ã¥È¤ÇÉ½¸½¤·¤Þ¤¹(::Terse = 0 ¤È ::Indent = 0¤Ç)¡£
+"dumper"¤ÎÂå¤ï¤ê¤Ë¡¢¥³¡¼¥É¥ê¥Õ¥¡¥ì¥ó¥¹¤ò»È¤¦¤³¤È¤â¤Ç¤­¤Þ¤¹¡£
 ¥³¡¼¥É¥ê¥Õ¥¡¥ì¥ó¥¹¤ò»ØÄê¤·¤¿¾ì¹ç¡¢¥³¡¼¥É¥ê¥Õ¥¡¥ì¥ó¥¹¤ÎÂè°ì°ú¿ô¤Ï¡¢tie¤µ¤ì¤¿ÃÍ¤Ç¡¢ÂèÆó°ú¿ô°Ê¹ß¤ÏÃÍ¤Ç¤¹¡£
 ¥³¡¼¥É¥ê¥Õ¥¡¥ì¥ó¥¹¤Î¼Â¹Ô·ë²Ì¤¬É½¼¨ÍÑ¤ÎÃÍ¤È¤·¤Æ»È¤ï¤ì¤Þ¤¹¡£
 
 =item debug_value => [contents/regexs/codref]
 
- tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
+ watch %hash, debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
 
 value¤ÏÃÍ¤ËÂÐ¤¹¤ë¤â¤Î¤Ç¤·¤¿¤¬¡¢debug_value¤Ï¡¢debug¤Ë¤è¤ê²Ã¹©¤µ¤ì¤¿¸å¤ÎÃÍ¤ËÂÐ¤¹¤ë¤â¤Î¤Ç¤¹¡£
 ¥³¡¼¥É¥ê¥Õ¥¡¥ì¥ó¥¹¤ò»ØÄê¤·¤¿¾ì¹ç¡¢¥³¡¼¥É¥ê¥Õ¥¡¥ì¥ó¥¹¤ÎÂè°ì°ú¿ô¤Ï¡¢tie¤µ¤ì¤¿ÃÍ¤Ç¡¢ÂèÆó°ú¿ô°Ê¹ß¤ÏÃÍ¤Ç¤¹¡£
@@ -118,7 +146,7 @@ value¤ÏÃÍ¤ËÂÐ¤¹¤ë¤â¤Î¤Ç¤·¤¿¤¬¡¢debug_value¤Ï¡¢debug¤Ë¤è¤ê²Ã¹©¤µ¤ì¤¿¸å¤ÎÃÍ¤ËÂÐ¤¹¤
 
 Îã;
 
- tie %hash, "Tie::Trace", debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
+ watch %hash, debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
  
  $hash{a} = 'fpp'  # warn ...      because debugged value is foo
  $hash{b} = 'foo'  # *no* warnings because debugged value is fpp
@@ -126,20 +154,20 @@ value¤ÏÃÍ¤ËÂÐ¤¹¤ë¤â¤Î¤Ç¤·¤¿¤¬¡¢debug_value¤Ï¡¢debug¤Ë¤è¤ê²Ã¹©¤µ¤ì¤¿¸å¤ÎÃÍ¤ËÂÐ¤¹¤
 
 =item r => 0/1
 
- tie %hash, "Tie::Trace", r => 0;
+ watch %hash, r => 0;
 
 r¤¬0¤Ç¤¢¤ì¤Ð¡¢¥ê¥Õ¥¡¥ì¥ó¥¹¤¬Æþ¤Ã¤Æ¤­¤¿¾ì¹ç¤Ë¡¢ºÆµ¢Åª¤Ë¥Á¥§¥Ã¥¯¤·¤Þ¤»¤ó¡£¥Ç¥Õ¥©¥ë¥È¤Ï¡¢1¤Ç¤¹¡£
 
 =item caller => number/[numbers]
 
- tie %hash, "Tie::Trace", caller => 2;
+ watch %hash, caller => 2;
 
 ¤³¤ì¤Ï¡¢·Ù¹ð¥á¥Ã¥»¡¼¥¸¤Ë±Æ¶Á¤·¤Þ¤¹¡£caller¤¬ÁÌ¤ë¿ô¤ò»ØÄê¤·¤Þ¤¹¡£
 ¥Ç¥Õ¥©¥ë¥È¤Ï0¤Ç¤¹¡£0¤è¤êÂç¤­¤¯¤¹¤ë¤È¡¢¤½¤ÎÊ¬ÁÌ¤ê¤Þ¤¹¡£
 
 ÇÛÎó¥ê¥Õ¥¡¥ì¥ó¥¹¤ò»ØÄê¤¹¤ë¤³¤È¤â½ÐÍè¤Þ¤¹¡£
 
- tie %hash, "Tie::Trace", caller => [1, 2, 3];
+ watch %hash, caller => [1, 2, 3];
 
 ²¼µ­¤Î¤è¤¦¤ÊÉ½¼¨¤Ë¤Ê¤ê¤Þ¤¹¡£
 
@@ -149,7 +177,7 @@ r¤¬0¤Ç¤¢¤ì¤Ð¡¢¥ê¥Õ¥¡¥ì¥ó¥¹¤¬Æþ¤Ã¤Æ¤­¤¿¾ì¹ç¤Ë¡¢ºÆµ¢Åª¤Ë¥Á¥§¥Ã¥¯¤·¤Þ¤»¤ó¡£¥Ç¥Õ¥©¥ë
 
 =back
 
-=head1 METHODS
+=head1 ¥á¥½¥Ã¥É
 
 key¡¢ value¡¢ debug_value¤Ê¤É¤Î¥ª¥×¥·¥ç¥ó¤ËÅÏ¤µ¤ì¤ë¥³¡¼¥É¥ê¥Õ¥¡¥ì¥ó¥¹¤Ç»È¤ï¤ì¤Þ¤¹¡£
 tied ´Ø¿ô¤ÎÌá¤êÃÍ¤Î¥á¥½¥Ã¥É¤È¤·¤Æ»È¤ï¤ì¤Þ¤¹¡£
@@ -158,7 +186,7 @@ tied ´Ø¿ô¤ÎÌá¤êÃÍ¤Î¥á¥½¥Ã¥É¤È¤·¤Æ»È¤ï¤ì¤Þ¤¹¡£
 
 =item storage
 
- tie %hash, "Tie::Trace", debug =>
+ watch %hash, debug =>
    sub {
      my($self, $v) = @_;
      my $storage = $self->storage;
@@ -169,7 +197,7 @@ tied ´Ø¿ô¤ÎÌá¤êÃÍ¤Î¥á¥½¥Ã¥É¤È¤·¤Æ»È¤ï¤ì¤Þ¤¹¡£
 
 =item parent
 
- tie %hash, "Tie::Trace", debug =>
+ watch %hash, debug =>
    sub {
      my($self, $v) = @_;
      my $parent = $self->parent->storage;
@@ -178,9 +206,9 @@ tied ´Ø¿ô¤ÎÌá¤êÃÍ¤Î¥á¥½¥Ã¥É¤È¤·¤Æ»È¤ï¤ì¤Þ¤¹¡£
 
 ¤³¤Î¥á¥½¥Ã¥É¤Ï¡¢$self¤Î¿Æ¤Îtie¤µ¤ì¤Æ¤¤¤ëÃÍ¤òÊÖ¤·¤Þ¤¹¡£
 
-for example;
+Îã;
 
- tie my %hash, "Tie::Trace";
+ watch my %hash;
  my %hash2;
  $hash{1} = \%hash2;
  my $tied_hash2 = tied %hash2;
@@ -188,9 +216,41 @@ for example;
 
 =back
 
+=head1 ¥°¥í¡¼¥Ð¥ëÊÑ¿ô
+
+=over 4
+
+=item %Tie::Trace::OPTIONS
+
+This is Global options for Tie::Trace.
+If you don't specify any options, this option is used.
+If you use override options, you use C<watch> with options.
+
+ %Tie::Trace::OPTIONS = (debug => undef, ...);
+
+ # global options will be used
+ watch my %hash;
+
+ # your options will be used
+ watch my %hash2, debug => 'dumper', ...;
+
+=item $Tie::Trace::QUIET
+
+If this value is true, Tie::Trace warn nothing.
+
+ watch my %hash;
+ 
+ $hash{1} = 1; # warn something
+ 
+ $Tie::Trace::QUIET = 1;
+ 
+ $hash{1} = 2; # no warn
+
+=back
+
 =head1 Ãø¼Ô
 
-Ktat, C<< <ktat at cpan.org> >>
+Ktat, C<< <ktat.is at gmail.com> >>
 
 =head1 ¥Ð¥°
 
@@ -231,6 +291,10 @@ L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Tie-Trace>
 L<http://search.cpan.org/dist/Tie-Trace>
 
 =back
+
+=head1 ´¶¼Õ
+
+JN¤Ï¿·¤·¤¤·Ù¹ð¥á¥Ã¥»¡¼¥¸(0.06¤«¤é)¤Î¥¢¥¤¥Ç¥¢¤ò¤¯¤ì¤Þ¤·¤¿¡£
 
 =head1 Ãøºî¸¢ & ¥é¥¤¥»¥ó¥¹
 
