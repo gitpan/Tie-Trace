@@ -1,4 +1,4 @@
-use Test::Base tests => 36;
+use Test::More tests => 36;
 
 use_ok("Tie::Trace");
 use Tie::Hash;

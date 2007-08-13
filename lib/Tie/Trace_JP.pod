@@ -6,10 +6,11 @@ Tie::Trace - tieで簡単printデバッギング
 
 =head1 バージョン
 
-Version 0.07
+Version 0.08
 
 =head1 概要
-    use Tie::Trace qw/watch/; # or qw/:all/
+
+use Tie::Trace qw/watch/; # or qw/:all/
  
     my %hash = (key => 'value');
     watch %hash;
@@ -50,11 +51,13 @@ Tie::Traceは再帰的にその値をチェックできます。
 
 =item watch
 
+ watch $variables;
+
  watch $scalar, %options;
  watch @array, %options;
  watch %hash, %options;
 
-変数をC<watch>し、そこに、値が入ったり、消されたりすると、,
+変数をC<watch>し、そこに、値が入ったり、消されたりすると、
 下記のようなメッセージで警告します。
 
  main:: %hash => {key} => value at ...
@@ -171,7 +174,7 @@ rが0であれば、リファレンスが入ってきた場合に、再帰的にチェックしません。デフォル
 
 下記のような表示になります。
 
- Hash => Key: key, Value:hoge at filename line 61.
+ main %hash => {key} => 'hoge' at filename line 61.
  at filename line 383.
  at filename line 268.
 
@@ -222,9 +225,9 @@ tied 関数の戻り値のメソッドとして使われます。
 
 =item %Tie::Trace::OPTIONS
 
-This is Global options for Tie::Trace.
-If you don't specify any options, this option is used.
-If you use override options, you use C<watch> with options.
+Tie::Traceのグローバルオプションです。
+何のオプションも指定しなければ、このオプションが使われます。
+このオプションをオーバーライドする場合は、C<watch>をオプション付きで使ってください。
 
  %Tie::Trace::OPTIONS = (debug => undef, ...);
 
@@ -236,7 +239,7 @@ If you use override options, you use C<watch> with options.
 
 =item $Tie::Trace::QUIET
 
-If this value is true, Tie::Trace warn nothing.
+真なら、警告を出さなくなります。
 
  watch my %hash;
  

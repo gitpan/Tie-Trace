@@ -1,4 +1,4 @@
-use Test::Base tests => 23;
+use Test::More tests => 23;
 
 local $SIG{__DIE__} = sub {print "ERROR: ", @_;};
 use Data::Dumper;

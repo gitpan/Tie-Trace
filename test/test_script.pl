@@ -43,6 +43,8 @@ splice @{$test->{b}}, 0, 3, "01";
 print "  => ", Dumper($test), "\n\n";
 @{$test}{qw/a b/} = ();
 print "  => ", Dumper($test), "\n\n";
+@{$test}{qw/a b/} = ([1 .. 5], "B");
+print "  => ", Dumper($test), "\n\n";
 delete @{$test}{qw/a b/};
 print "  => ", Dumper($test), "\n\n";
 $test->{a} = sub {};
@@ -97,11 +99,15 @@ The following is result of test_script.pl
  TestPackage:: $test => {b} => undef at test/test_script.pl line 44.
    => {'a' => undef,'b' => undef}
  
- TestPackage:: $test => {a} => DELETED at test/test_script.pl line 46.
- TestPackage:: $test => {b} => DELETED at test/test_script.pl line 46.
+ TestPackage:: $test => {a} => [1,2,3,4,5] at test/test_script.pl line 46.
+ TestPackage:: $test => {b} => 'B' at test/test_script.pl line 46.
+   => {'a' => ['1','2','3','4','5'],'b' => 'B'}
+ 
+ TestPackage:: $test => {a} => DELETED([1,2,3,4,5]) at test/test_script.pl line 48.
+ TestPackage:: $test => {b} => DELETED('B') at test/test_script.pl line 48.
    => {}
  
- TestPackage:: $test => {a} => sub {        package TestPackage;        use strict 'refs';            } at test/test_script.pl line 48.
+  TestPackage:: $test => {a} => sub {        package TestPackage;        use strict 'refs';            } at test/test_script.pl line 48.
    => {'a' => sub { "DUMMY" }}
  
  TestPackage:: $test => {a} => sub {        package TestPackage;        use strict 'refs';        1, 2, 3;    } at test/test_script.pl line 51.

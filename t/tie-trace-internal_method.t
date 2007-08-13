@@ -14,8 +14,13 @@ ok($self->_matching([qr/foo/, 'foo'], "foobar"));
 ok($self->_matching([qr/hoge/, 'hoge'], "hoge"));
 ok($self->_matching([qr/foo/, 'foo'], "foo"));
 ok($self->_matching([qr/foo/, 'foo'], "foo"));
+ok($self->_dumper([1, 2, 3], "[1,2,3]"));
 
 my %hash2;
+{
+  no warnings;
+  $Tie::Trace::QUIET = 1;
+}
 
 $hash{1} = \%hash2;
 is((tied %hash2)->parent, tied %hash, "parent");

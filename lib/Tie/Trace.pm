@@ -1,8 +1,8 @@
 package Tie::Trace;
 
-use warnings;
-use PadWalker;
 use strict;
+use warnings;
+use PadWalker ();
 use Tie::Hash ();
 use Tie::Array ();
 use Tie::Scalar ();
@@ -10,19 +10,22 @@ use Carp ();
 use Data::Dumper ();
 use base qw/Exporter/;
 
-use constant SCALAR    => 0;
-use constant SCALARREF => 1;
-use constant ARRAYREF  => 2;
-use constant HASHREF   => 4;
-use constant BLESSED   => 8;
-use constant TIED      => 16;
+use constant {
+  SCALAR    => 0,
+  SCALARREF => 1,
+  ARRAYREF  => 2,
+  HASHREF   => 4,
+  BLESSED   => 8,
+  TIED      => 16,
+  };
 
 our @EXPORT_OK  = ('watch');
 our %EXPORT_TAGS = (all => \@EXPORT_OK);
-our $AUTOLOAD;
+
 our %OPTIONS = (debug => 'dumper');
-our $QUIET     = 0;
-our $_CARP_OFF = 0;
+our $QUIET   = 0;
+
+our $AUTOLOAD;
 
 sub AUTOLOAD{
   # proxy to Tie::Std***
@@ -57,7 +60,7 @@ sub watch(\[$@%]@){
   };
   my $pkg = defined $var_name ? (caller)[0] : undef;
   my $tied_value = tie $s_type eq 'SCALAR' ? $$s : $s_type eq 'ARRAY' ? @$s : %$s, "Tie::Trace", var => $var_name, pkg => $pkg, @options;
-  local $_CARP_OFF = 1;
+  local $QUIET = 1;
 
   if($s_type eq 'SCALAR'){
     $$s = $s_;
@@ -69,6 +72,14 @@ sub watch(\[$@%]@){
   return $tied_value;
 }
 
+sub _dumper{
+  my($self, $value) = @_;
+  local $Data::Dumper::Terse   = 1;
+  local $Data::Dumper::Indent  = 0;
+  local $Data::Dumper::Deparse = 1;
+  $value = Data::Dumper::Dumper($value);
+}
+
 sub storage{
   my($self) = @_;
   return $self->{storage};
@@ -78,8 +89,6 @@ sub parent{
   my($self) = @_;
   return $self->{parent};
 }
-
-sub _carp_off{ 1 };
 
 sub _match{
   my($self, $test, $value) = @_;
@@ -193,10 +202,7 @@ sub _debug_message{
   if(ref $debug eq 'CODE'){
     $value = $debug->($self, $value);
   }elsif(lc($debug) eq 'dumper'){
-    local $Data::Dumper::Terse = 1;
-    local $Data::Dumper::Indent = 0;
-    local $Data::Dumper::Deparse = 1;
-    $value = Data::Dumper::Dumper($value);
+    $value = $self->_dumper($value);
     if(defined $filter){
        $filter->($value);
     }
@@ -298,18 +304,19 @@ use base qw/Tie::Trace/;
 
 sub STORE{
   my($self, $key, $value) = @_;
-  $self->_carpit(key => $key, value => $value)  unless $_CARP_OFF;
-  local $_CARP_OFF = $self->_carp_off();
+  $self->_carpit(key => $key, value => $value)  unless $QUIET;
+  local $QUIET = 1;
   Tie::Trace::_data_filter($value, $self, {__key => $key});
   $self->{storage}->{$key} = $value;
 };
 
 sub DELETE {
   my($self, $key) = @_;
-  $self->_carpit(key => $key, value => 'DELETED', filter => sub{$_[0] =~ s/\'(.+)\'$/$1/})  unless $_CARP_OFF;
-  delete $self->{storage}->{$key};
+  my $deleted = delete $self->{storage}->{$key};
+  $deleted = 'undef' if not defined $deleted;
+  $self->_carpit(key => $key, value => sprintf("DELETED(%s)", $self->_dumper($deleted)), filter => sub{$_[0] =~ s/^\'(.+)\'$/$1/; $_[0] =~s /\\'/'/g})  unless $QUIET;
+  return $deleted;
 }
-
 
 # Array /////////////////////////
 package Tie::Trace::Array;
@@ -321,17 +328,17 @@ use base qw/Tie::Trace/;
 
 sub STORE{
   my($self, $p, $value) = @_;
-  $self->_carpit(point => $p, value => $value)  unless $_CARP_OFF;
-  local $_CARP_OFF = Tie::Trace->_carp_off();
+  $self->_carpit(point => $p, value => $value)  unless $QUIET;
+  local $QUIET = 1;
   Tie::Trace::_data_filter($value, $self, {__point => $p});
   $self->{storage}->[$p] = $value;
 }
 
 sub DELETE{
   my($self, $p) = @_;
-  $self->_carpit(point => $p, value => 'DELETED', filter => sub{$_[0] =~ s/\'(.*)\'$/$1/})  unless $_CARP_OFF;
-  local $_CARP_OFF = Tie::Trace->_carp_off();
-  delete ${$self->{storage}}[$p];
+  my $deleted = delete ${$self->{storage}}[$p];
+  $self->_carpit(point => $p, value => sprintf("DELETED(%s)", $self->_dumper($deleted)), filter => sub{$_[0] =~ s/^\'(.*)\'$/$1/; $_[0] =~s /\\'/'/g})  unless $QUIET;
+  return $deleted;
 }
 
 sub SPLICE{
@@ -350,8 +357,8 @@ sub SPLICE{
   my $to  = $off + $len -1;
   my $p = $off eq $to ? $off : $off < $to ? "$off .. $to" : $off;
   my @point = $func ? () : (point => $p);
-  $self->_carpit(@point, value => \@_, filter => sub {$_[0] =~ s/^\[(.*)\]$/$func\($1\)/} )  unless $_CARP_OFF;
-  local $_CARP_OFF = Tie::Trace->_carp_off();
+  $self->_carpit(@point, value => \@_, filter => sub {$_[0] =~ s/^\[(.*)\]$/$func\($1\)/} )  unless $QUIET;
+  local $QUIET = 1;
   if(@_){
     my $cnt = 0;
     foreach(@_){
@@ -361,7 +368,7 @@ sub SPLICE{
   my $ret = splice(@{$self->{storage}}, $off, $len, @_);
   if(@_ != $len){
     my $diff = scalar @_ - $len;
-    local $_CARP_OFF = Tie::Trace->_carp_off();
+    local $QUIET = 1;
     for(my $i = 0;$i < @{$self->{storage}}; $i++){
       my $value = $self->{storage}->[$i];
       Tie::Trace::_data_filter($value, $self, {__point => $i});
@@ -406,8 +413,8 @@ use base qw/Tie::Trace/;
 
 sub STORE{
   my($self, $value) = @_;
-  $self->_carpit(value => $value)  unless $_CARP_OFF;
-  local $_CARP_OFF = Tie::Trace->_carp_off();
+  $self->_carpit(value => $value)  unless $QUIET;
+  local $QUIET = 1;
   Tie::Trace::_data_filter($value, $self);
   ${$self->{storage}} = $value;
 };
@@ -418,11 +425,11 @@ Tie::Trace - easy print debugging with tie, for watching variable
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =cut
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 SYNOPSIS
 
@@ -466,6 +473,8 @@ Then you should use only this function. Don't use C<tie> function instead.
 =over 4
 
 =item watch
+
+ watch $variables;
 
  watch $scalar, %options;
  watch @array, %options;
@@ -589,7 +598,7 @@ You can specify array ref.
 
 It display following messages.
 
- Hash => Key: key, Value:hoge at filename line 61.
+ main %hash => {key} => 'hoge' at filename line 61.
  at filename line 383.
  at filename line 268.
 
