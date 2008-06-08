@@ -153,9 +153,17 @@ sub _output_message{
   my($msg, @msg) = ('');
 
   my $caller    =  $self->{options}->{caller};
-  my $_caller_n = (caller 1)[0] =~ /^Tie::Trace/ ? 2 : 1;
-  my @caller = map $_ + $_caller_n, ref $caller ? @{$caller} : $caller;
+  my $_caller_n = 1;
+  while (my $c = (caller $_caller_n)[0]) {
+    if (not $c) {
+      last;
+    } elsif ($c  !~ /^Tie::Trace/) {
+      last;
+    }
+    $_caller_n++;
+  }
 
+  my @caller = map $_ + $_caller_n, ref $caller ? @{$caller} : $caller;
   my(@filename, @line);
   foreach(@caller){
     my($f, $l) = (caller($_))[1, 2];
@@ -296,7 +304,8 @@ sub _data_filter{
 }
 
 # Hash /////////////////////////
-package Tie::Trace::Hash;
+package
+ Tie::Trace::Hash;
 
 use warnings;
 use strict;
@@ -320,7 +329,8 @@ sub DELETE {
 }
 
 # Array /////////////////////////
-package Tie::Trace::Array;
+package
+ Tie::Trace::Array;
 
 use warnings;
 use strict;
@@ -405,7 +415,8 @@ sub SHIFT{
 }
 
 # Scalar /////////////////////////
-package Tie::Trace::Scalar;
+package
+ Tie::Trace::Scalar;
 
 use warnings;
 use strict;
@@ -430,7 +441,7 @@ Version 0.08
 
 =cut
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 =head1 SYNOPSIS
 
@@ -723,11 +734,11 @@ L<http://search.cpan.org/dist/Tie-Trace>
 
 =head1 ACKNOWLEDGEMENT
 
-JN tell the idea of new warning message(from 0.06).
+JN told me the idea of new warning message(from 0.06).
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2006 Ktat, all rights reserved.
+Copyright 2006-2008 Ktat, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
