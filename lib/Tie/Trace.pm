@@ -215,6 +215,7 @@ sub _tieit {
   foreach (keys %OPTIONS){
     $arg{$_} = $OPTIONS{$_} if not exists $arg{$_};
   }
+
   if($class =~/^Tie::Trace$/){
     my $type = lc(ref $self);
     substr($type, 0, 1) = uc(substr($type, 0, 1));
@@ -429,7 +430,7 @@ Version 0.08
 
 =cut
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 =head1 SYNOPSIS
 

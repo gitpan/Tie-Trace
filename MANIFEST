@@ -12,4 +12,6 @@ t/pod.t
 t/tie-trace-internal_method.t
 t/tie-trace.t
 t/tie-trace-watch.t
+t/tie-trace-module.t
+t/lib/Hoge.pm
 test/test_script.pl
