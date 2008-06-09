@@ -1,5 +1,8 @@
 Revision history for Tie-Trace
 
+0.11    2008-06-10 01:21:00
+        add Test::Base in Makefile.PL
+
 0.10    2008-06-08 16:26:00
         fix detecting source line number.
 
