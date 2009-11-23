@@ -1,14 +1,14 @@
-=encoding euc-jp
+=encoding utf8
 
-=head1 ̾��
+=head1 名前
 
-Tie::Trace - tie�Ǵ�ñprint�ǥХå���
+Tie::Trace - tieで簡単printデバッギング
 
-=head1 �С������
+=head1 バージョン
 
-Version 0.08
+Version 0.12
 
-=head1 ����
+=head1 概要
 
 use Tie::Trace qw/watch/; # or qw/:all/
  
@@ -25,27 +25,27 @@ use Tie::Trace qw/watch/; # or qw/:all/
     watch $scalar;
     $scalar = "scalar";      # warn "main:: $scalar => scalar at ..."
 
-=head1 ����
+=head1 説明
 
-Tie::Trace��print�ǥХå��󥰤�ͭ�ѤǤ���tie��Ȥäơ�������ѿ���
-�����줿/������줿�ͤ򸫤뤳�Ȥ�����ޤ���
+Tie::Traceはprintでバッキングに有用です。tieを使って、特定の変数に
+入れられた/削除された値を見ることが出来ます。
 
-�����줿�ͤ���������/����/�ϥå����ե���󥹤Ǥ���С�
-Tie::Trace�ϺƵ�Ū�ˤ����ͤ�����å��Ǥ��ޤ���
+入れられた値が、スカラ/配列/ハッシュリファレンスであれば、
+Tie::Traceは再帰的にその値をチェックできます。
 
-��;
+例;
 
  watch %hash;
  
  $hash{foo} = {a => 1, b => 2}; # warn "main:: %hash => {foo} => {a => 1, b => 2}"
  $hash{foo}->{a} = 2            # warn "main:: %hash => {foo}{a} => 2"
 
-�Ǥ�����bless���줿��ե���󥹤�tie���줿�ͤ�̵�뤵��ޤ���
+ですが、blessされたリファレンスやtieされた値は無視されます。
 
-=head1 �ؿ�
+=head1 関数
 
-���Υ⥸�塼��ϡ�version 0.06 ���顢C<watch>�ؿ����󶡤��Ƥ��ޤ���
-���δؿ��Τߤ�Ȥ��٤��Ǥ��äơ������ tie �ؿ���ȤäƤϤ����ޤ���
+このモジュールは、version 0.06 から、C<watch>関数を提供しています。
+この関数のみを使うべきであって、代わりに tie 関数を使ってはいけません。
 
 =over 4
 
@@ -57,22 +57,22 @@ Tie::Trace�ϺƵ�Ū�ˤ����ͤ�����å��Ǥ��ޤ���
  watch @array, %options;
  watch %hash, %options;
 
-�ѿ���C<watch>���������ˡ��ͤ����ä��ꡢ�ä��줿�ꤹ��ȡ�
-�����Τ褦�ʥ�å������Ƿٹ𤷤ޤ���
+変数をC<watch>し、そこに、値が入ったり、消されたりすると、
+下記のようなメッセージで警告します。
 
  main:: %hash => {key} => value at ...
 
-C<watch>���������ͤ����äƤ��Ƥ⡢���ꤢ��ޤ���Tie::Trace�Ϥ��ޤ�ư���ޤ���
+C<watch>する前に値が入っていても、問題ありません。Tie::Traceはうまく動きます。
 
  my %hash = (key => 'value');
  watch %hash;
 
 =back
 
-=head1 ���ץ����
+=head1 オプション
 
-C<watch>�򥪥ץ�����դ��ǻȤ����Ȥ��Ǥ��ޤ���
-�������Х�ʥ��ץ�����ߤ�����С�L<�������Х��ѿ�> �򸫤Ƥ���������
+C<watch>をオプション付きで使うことができます。
+グローバルなオプションが欲しければ、L<グローバル変数> を見てください。
 
 =over 4
 
@@ -80,12 +80,12 @@ C<watch>�򥪥ץ�����դ��ǻȤ����Ȥ��Ǥ��ޤ���
 
  watch %hash, key => [qw/foo bar/];
 
-����ϥϥå���Τ���Τ�ΤǤ��������å����륭����̾�������������Ф�������ɽ�������Ǥ��ޤ���
-���ꤵ�줿/�ޥå����������Ǥʤ���С��ٹ���оݤˤʤ餺��̵�뤵��ޤ���
-�����ɥ�ե���󥹤���ꤷ����硢�����ɥ�ե���󥹤��������ϡ�tie���줿�ͤǡ���������ʹߤ��ͤǤ���
-�����ɥ�ե���󥹤������֤�����硢̵�뤵��ޤ���
+これはハッシュのためのものです。チェックするキーの名前か、キーに対する正規表現を指定できます。
+指定された/マッチしたキーでなければ、警告の対象にならず、無視されます。
+コードリファレンスを指定した場合、コードリファレンスの第一引数は、tieされた値で、第二引数以降は値です。
+コードリファレンスが偽を返した場合、無視されます。
 
-��;
+例;
 
  watch %hash, key => [qw/foo bar/, qr/x/];
  
@@ -98,12 +98,12 @@ C<watch>�򥪥ץ�����դ��ǻȤ����Ȥ��Ǥ��ޤ���
 
  watch %hash, value => [qw/foo bar/];
 
-�����å������ͤ����Ƥ����ͤ��Ф�������ɽ�������Ǥ��ޤ���
-���ꤵ�줿/�ޥå������ͤǤʤ���С��ٹ���оݤˤʤ餺��̵�뤵��ޤ���
-�����ɥ�ե���󥹤���ꤷ����硢�����ɥ�ե���󥹤��������ϡ�tie���줿�ͤǡ���������ʹߤ��ͤǤ���
-�����ɥ�ե���󥹤������֤�����硢̵�뤵��ޤ���
+チェックする値の内容か、値に対する正規表現を指定できます。
+指定された/マッチした値でなければ、警告の対象にならず、無視されます。
+コードリファレンスを指定した場合、コードリファレンスの第一引数は、tieされた値で、第二引数以降は値です。
+コードリファレンスが偽を返した場合、無視されます。
 
-��;
+例;
 
  watch %hash, value => [qw/foo bar/, qr/\)/];
  
@@ -116,10 +116,10 @@ C<watch>�򥪥ץ�����դ��ǻȤ����Ȥ��Ǥ��ޤ���
 
  watch %hash, use => [qw/array/];
 
-�����å������ѿ��Υ�����(�����顼�����󡢥ϥå���)����ꤷ�ޤ���
-�ǥե���ȤǤϡ����ƤΥ����פ������å�����ޤ���
+チェックする変数のタイプ(スカラー、配列、ハッシュ)を指定します。
+デフォルトでは、全てのタイプがチェックされます。
 
-��;
+例;
 
  watch %hash, use => [qw/array/];
  
@@ -133,21 +133,21 @@ C<watch>�򥪥ץ�����դ��ǻȤ����Ȥ��Ǥ��ޤ���
  watch %hash, debug => 'dumper'
  watch %hash, debug => sub{my($self, @v) = @_; return @v }
 
-�ͤ�ɽ�������Ǥ��ޤ�. �ǥե���ȤǤ�"dumper"�����åȤ���Ƥ��ޤ���
-"dumper"�ϡ��ͤ�Data::Dumper::Dumper�Υե����ޥåȤ�ɽ�����ޤ�(::Terse = 0 �� ::Indent = 0��)��
-"dumper"������ˡ������ɥ�ե���󥹤�Ȥ����Ȥ�Ǥ��ޤ���
-�����ɥ�ե���󥹤���ꤷ����硢�����ɥ�ե���󥹤��������ϡ�tie���줿�ͤǡ���������ʹߤ��ͤǤ���
-�����ɥ�ե���󥹤μ¹Է�̤�ɽ���Ѥ��ͤȤ��ƻȤ��ޤ���
+値の表現を指定できます. デフォルトでは"dumper"がセットされています。
+"dumper"は、値をData::Dumper::Dumperのフォーマットで表現します(::Terse = 0 と ::Indent = 0で)。
+"dumper"の代わりに、コードリファレンスを使うこともできます。
+コードリファレンスを指定した場合、コードリファレンスの第一引数は、tieされた値で、第二引数以降は値です。
+コードリファレンスの実行結果が表示用の値として使われます。
 
 =item debug_value => [contents/regexs/codref]
 
  watch %hash, debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
 
-value���ͤ��Ф����ΤǤ�������debug_value�ϡ�debug�ˤ��ù����줿����ͤ��Ф����ΤǤ���
-�����ɥ�ե���󥹤���ꤷ����硢�����ɥ�ե���󥹤��������ϡ�tie���줿�ͤǡ���������ʹߤ��ͤǤ���
-�����ɥ�ե���󥹤������֤�����硢̵�뤵��ޤ���
+valueは値に対するものでしたが、debug_valueは、debugにより加工された後の値に対するものです。
+コードリファレンスを指定した場合、コードリファレンスの第一引数は、tieされた値で、第二引数以降は値です。
+コードリファレンスが偽を返した場合、無視されます。
 
-��;
+例;
 
  watch %hash, debug => sub{my($s,$v) = @_; $v =~tr/op/po/;}, debug_value => [qw/foo boo/];
  
@@ -159,20 +159,20 @@ value���ͤ��Ф����ΤǤ�������debug_value�ϡ�debug�ˤ��ù����줿����ͤ��Ф��
 
  watch %hash, r => 0;
 
-r��0�Ǥ���С���ե���󥹤����äƤ������ˡ��Ƶ�Ū�˥����å����ޤ��󡣥ǥե���Ȥϡ�1�Ǥ���
+rが0であれば、リファレンスが入ってきた場合に、再帰的にチェックしません。デフォルトは、1です。
 
 =item caller => number/[numbers]
 
  watch %hash, caller => 2;
 
-����ϡ��ٹ��å������˱ƶ����ޤ���caller���̤������ꤷ�ޤ���
-�ǥե���Ȥ�0�Ǥ���0����礭������ȡ�����ʬ�̤�ޤ���
+これは、警告メッセージに影響します。callerが遡る数を指定します。
+デフォルトは0です。0より大きくすると、その分遡ります。
 
-�����ե���󥹤���ꤹ�뤳�Ȥ����ޤ���
+配列リファレンスを指定することも出来ます。
 
  watch %hash, caller => [1, 2, 3];
 
-�����Τ褦��ɽ���ˤʤ�ޤ���
+下記のような表示になります。
 
  main %hash => {key} => 'hoge' at filename line 61.
  at filename line 383.
@@ -180,10 +180,10 @@ r��0�Ǥ���С���ե���󥹤����äƤ������ˡ��Ƶ�Ū�˥����å����ޤ��󡣥ǥե���
 
 =back
 
-=head1 �᥽�å�
+=head1 メソッド
 
-key�� value�� debug_value�ʤɤΥ��ץ������Ϥ���륳���ɥ�ե���󥹤ǻȤ��ޤ���
-tied �ؿ�������ͤΥ᥽�åɤȤ��ƻȤ��ޤ���
+key、 value、 debug_valueなどのオプションに渡されるコードリファレンスで使われます。
+tied 関数の戻り値のメソッドとして使われます。
 
 =over 4
 
@@ -196,7 +196,7 @@ tied �ؿ�������ͤΥ᥽�åɤȤ��ƻȤ��ޤ���
      return $storage;
    };
 
-�ͤ��ߤ����Ƥ����ե���󥹤��֤��ޤ���
+値が蓄えられているリファレンスを返します。
 
 =item parent
 
@@ -207,9 +207,9 @@ tied �ؿ�������ͤΥ᥽�åɤȤ��ƻȤ��ޤ���
      return $parent;
    };
 
-���Υ᥽�åɤϡ�$self�οƤ�tie����Ƥ����ͤ��֤��ޤ���
+このメソッドは、$selfの親のtieされている値を返します。
 
-��;
+例;
 
  watch my %hash;
  my %hash2;
@@ -219,15 +219,15 @@ tied �ؿ�������ͤΥ᥽�åɤȤ��ƻȤ��ޤ���
 
 =back
 
-=head1 �������Х��ѿ�
+=head1 グローバル変数
 
 =over 4
 
 =item %Tie::Trace::OPTIONS
 
-Tie::Trace�Υ������Х륪�ץ����Ǥ���
-���Υ��ץ�������ꤷ�ʤ���С����Υ��ץ���󤬻Ȥ��ޤ���
-���Υ��ץ����򥪡��С��饤�ɤ�����ϡ�C<watch>�򥪥ץ�����դ��ǻȤäƤ���������
+Tie::Traceのグローバルオプションです。
+何のオプションも指定しなければ、このオプションが使われます。
+このオプションをオーバーライドする場合は、C<watch>をオプション付きで使ってください。
 
  %Tie::Trace::OPTIONS = (debug => undef, ...);
 
@@ -239,7 +239,7 @@ Tie::Trace�Υ������Х륪�ץ����Ǥ���
 
 =item $Tie::Trace::QUIET
 
-���ʤ顢�ٹ��Ф��ʤ��ʤ�ޤ���
+真なら、警告を出さなくなります。
 
  watch my %hash;
  
@@ -251,11 +251,11 @@ Tie::Trace�Υ������Х륪�ץ����Ǥ���
 
 =back
 
-=head1 ����
+=head1 著者
 
 Ktat, C<< <ktat.is at gmail.com> >>
 
-=head1 �Х�
+=head1 バグ
 
 Please report any bugs or feature requests to
 C<bug-tie-debug at rt.cpan.org>, or through the web interface at
@@ -263,17 +263,17 @@ L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Tie-Trace>.
 I will be notified, and then you'll automatically be notified of progress on
 your bug as I make changes.
 
-=head1 ���ݡ���
+=head1 サポート
 
-perldoc���ޥ�ɤǤ��Υ⥸�塼��Υɥ�����Ȥ򸫤Ĥ����ޤ���
+perldocコマンドでこのモジュールのドキュメントを見つけられます。
 
     perldoc Tie::Trace
 
-���ܸ�Υɥ������(euc-jp)�ϲ����ˤʤ�ޤ���
+日本語のドキュメント(euc-jp)は下記になります。
 
     perldoc Tie::Trace_JP
 
-�ޤ���������������򸫤뤳�Ȥ�����ޤ�:
+また、下記からも情報を見ることが出来ます:
 
 =over 4
 
@@ -295,13 +295,13 @@ L<http://search.cpan.org/dist/Tie-Trace>
 
 =back
 
-=head1 ����
+=head1 感謝
 
-JN�Ͽ������ٹ��å�����(0.06����)�Υ����ǥ��򤯤�ޤ�����
+JNは新しい警告メッセージ(0.06から)のアイデアをくれました。
 
-=head1 ��� & �饤����
+=head1 著作権 & ライセンス
 
-Copyright 2006-2007 Ktat, all rights reserved.
+Copyright 2006-2009 Ktat, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

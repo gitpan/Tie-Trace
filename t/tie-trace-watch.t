@@ -1,16 +1,21 @@
-use Test::More tests => 23;
+use Test::More tests => 24;
 
 local $SIG{__DIE__} = sub {print "ERROR: ", @_;};
 use Data::Dumper;
 
 use_ok("Tie::Trace");
-use Tie::Hash;
+#use Tie::Hash;
+
+
 
 {
   my $err;
   local *STDERR;
 
   ok(open(STDERR, ">", \$err), "open");
+
+
+  
   my %hash = ();
   Tie::Trace::watch(\%hash, r => 1);
 
@@ -22,16 +27,28 @@ use Tie::Hash;
   $hash{1} = $x;            # 1 -- HASH(....)
   like($err, qr/^main:: \%hash => \{1\} => \{/m, '$hash{1} = $x');
 
+  
   $hash{1}->{hoge} = 3;     # hoge -- 3
   like($err, qr/^main:: \%hash => \{1\}\{hoge\} => 3/m, '$hash{1}->{hoge} = 3');
+
+  
 
   $hash{1}->{hoge} = 4;     # hoge -- 4
   like($err, qr/^main:: \%hash => \{1\}{hoge} => 4/m, '$hash{1}->{hoge} = 4');
 
+  close STDERR;
+
+  open STDERR, '>', \$err or die $!;
+
+  $hash{1}->{hoge} = 0;     # hoge -- 0
+  like($err, qr/^main:: \%hash => \{1\}{hoge} => 0/m, '$hash{1}->{hoge} = 0');
+
+  
   $hash{2}->{hoge} = 222;   # 2 -- HASH(...)
                           # hoge - 222
   like($err, qr/^main:: \%hash => \{2\} => \{/m, '$hash{2} = HASH');
   like($err, qr/^main:: \%hash => \{2\}\{hoge\} => 222/m, '$hash{2}->{hoge} = 222');
+ 
 
   push(@{$hash{1}->{hoge3}}, "array");# array
   like($err, qr/^main:: \%hash => \@{\{1\}\{hoge3\}} => PUSH\('?array'?\)/m, 'push(@{$hash{1}->{hoge3}}, "array")');
@@ -76,7 +93,7 @@ use Tie::Hash;
   unlike($err, qr/^\s*\{arx\} => 'bar'/m, q{$hash{xxx}->{ar} = 'bar'});
   $hash4{xxx}->{xxx} = 'var';
   unlike($err, qr/^\s*\{xxx\} => 'var'/m, q{$hash{xxx}->{xxx} = 'var'});
-
+ 
 =iranai
 
   my %hash5;

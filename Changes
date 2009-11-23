@@ -1,5 +1,9 @@
 Revision history for Tie-Trace
 
+0.12    2009-09-24 03:49:12
+	fix bug of output variable whose value is 0.
+    	Thanks to Christoph.
+
 0.11    2008-06-10 01:21:00
         add Test::Base in Makefile.PL
 

@@ -189,7 +189,7 @@ sub _output_message{
   $msg = @msg > 0 ? ' => ' . join "", reverse @msg : "";
 
 
-  $value ||= '';
+  $value = '' unless defined $value;
   if ($class eq 'Scalar') {
     return("${msg} => $value$location");
   } elsif ($class eq 'Array') {
@@ -437,11 +437,11 @@ Tie::Trace - easy print debugging with tie, for watching variable
 
 =head1 VERSION
 
-Version 0.08
+Version 0.12
 
 =cut
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 SYNOPSIS
 
@@ -738,7 +738,7 @@ JN told me the idea of new warning message(from 0.06).
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2006-2008 Ktat, all rights reserved.
+Copyright 2006-2009 Ktat, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
