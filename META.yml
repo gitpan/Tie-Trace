@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Tie-Trace
-version:            0.12
+version:            0.13
 abstract:           easy print debugging with tie, for watching variable
 author:
     - Ktat <ktat@cpan.org>

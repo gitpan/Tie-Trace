@@ -1,6 +1,10 @@
 Revision history for Tie-Trace
 
-0.12    2009-09-24 03:49:12
+0.13    2009-12-02 05:00:00
+ 	implement CLEAR method for Hash and Array.
+   	implement STORESIZE method for Array.
+
+0.12    2009-11-24 03:49:12
 	fix bug of output variable whose value is 0.
     	Thanks to Christoph.
 

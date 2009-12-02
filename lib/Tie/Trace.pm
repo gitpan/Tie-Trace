@@ -65,9 +65,9 @@ sub watch(\[$@%]@){
   if($s_type eq 'SCALAR'){
     $$s = $s_;
   }elsif($s_type eq 'ARRAY'){
-    @$s = @$s_;
+    @$s = @$s_ if @$s_;
   }elsif($s_type eq 'HASH'){
-    %$s = %$s_;
+    %$s = %$s_ if %$s_;
   }
   return $tied_value;
 }
@@ -171,7 +171,9 @@ sub _output_message{
 
     push @filename, $f;
     push @line, $l;
+
   }
+
   my $location = @line == 1 ? " at $filename[0] line $line[0]." :
                               join "\n", map " at $filename[$_] line $line[$_].", (0 .. $#filename);
   my($_p, $p) = ($self, $self->parent);
@@ -328,6 +330,11 @@ sub DELETE {
   return $deleted;
 }
 
+sub CLEAR{
+  my($self) = @_;
+  return $self->Tie::Hash::CLEAR;
+}
+
 # Array /////////////////////////
 package
  Tie::Trace::Array;
@@ -367,7 +374,7 @@ sub SPLICE{
   my $len = @_ ? shift : $sz - $off;
   my $to  = $off + $len -1;
   my $p = $off eq $to ? $off : $off < $to ? "$off .. $to" : $off;
-  my @point = $func ? () : (point => $p);
+  my @point = ($func and $func ne 'STORESIZE') ? () : (point => $p);
   $self->_carpit(@point, value => \@_, filter => sub {$_[0] =~ s/^\[(.*)\]$/$func\($1\)/} )  unless $QUIET;
   local $QUIET = 1;
   if(@_){
@@ -414,6 +421,19 @@ sub SHIFT{
   return $self->SPLICE(0, 1);
 }
 
+sub STORESIZE {
+  my ($self, $p) = @_;
+  $self->SPLICE($p, $self->FETCHSIZE - $p);
+  return undef;
+}
+
+sub CLEAR{
+  my($self) = @_;
+  return $self->Tie::Array::CLEAR();
+  $self->DELETE($_) for 0 .. $#{$self->{storage}};
+  return undef;
+}
+
 # Scalar /////////////////////////
 package
  Tie::Trace::Scalar;
@@ -437,11 +457,11 @@ Tie::Trace - easy print debugging with tie, for watching variable
 
 =head1 VERSION
 
-Version 0.12
+Version 0.13
 
 =cut
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 SYNOPSIS
 
@@ -738,7 +758,7 @@ JN told me the idea of new warning message(from 0.06).
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2006-2009 Ktat, all rights reserved.
+Copyright 2006-2010 Ktat, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
