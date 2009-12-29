@@ -1,4 +1,4 @@
-use Test::More tests => 24;
+use Test::More;
 
 local $SIG{__DIE__} = sub {print "ERROR: ", @_;};
 use Data::Dumper;
@@ -93,6 +93,9 @@ use_ok("Tie::Trace");
   unlike($err, qr/^\s*\{arx\} => 'bar'/m, q{$hash{xxx}->{ar} = 'bar'});
   $hash4{xxx}->{xxx} = 'var';
   unlike($err, qr/^\s*\{xxx\} => 'var'/m, q{$hash{xxx}->{xxx} = 'var'});
+  $hash4{xxx} = undef;
+  my $del = delete $hash4{xxx};
+  is($del, undef);
  
 =iranai
 
@@ -119,4 +122,4 @@ use_ok("Tie::Trace");
 =cut
 }
 
-
+done_testing;

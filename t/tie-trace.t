@@ -1,4 +1,4 @@
-use Test::More tests => 45;
+use Test::More;
 
 use_ok("Tie::Trace", ":all");
 use Tie::Hash;
@@ -135,6 +135,10 @@ use Tie::Trace ":all";
   like($err, qr{^main:: \@array\[3\] => 5}m);
   undef @array;
   like($err, qr{^main:: \@array\[0 .. 3\] => STORESIZE\(\)}m);
+  $array[0] = undef;
+  is(delete $array[0], undef);
 
   close STDERR;
 }
+
+done_testing;

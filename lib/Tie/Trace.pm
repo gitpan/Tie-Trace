@@ -325,8 +325,10 @@ sub STORE{
 sub DELETE {
   my($self, $key) = @_;
   my $deleted = delete $self->{storage}->{$key};
-  $deleted = 'undef' if not defined $deleted;
-  $self->_carpit(key => $key, value => sprintf("DELETED(%s)", $self->_dumper($deleted)), filter => sub{$_[0] =~ s/^\'(.+)\'$/$1/; $_[0] =~s /\\'/'/g})  unless $QUIET;
+  $self->_carpit(key => $key,
+                 value => sprintf("DELETED(%s)", $self->_dumper(defined $deleted ? $deleted : 'undef')),
+                 filter => sub{$_[0] =~ s/^\'(.+)\'$/$1/; $_[0] =~s /\\'/'/g}
+                )  unless $QUIET;
   return $deleted;
 }
 
@@ -355,7 +357,10 @@ sub STORE{
 sub DELETE{
   my($self, $p) = @_;
   my $deleted = delete ${$self->{storage}}[$p];
-  $self->_carpit(point => $p, value => sprintf("DELETED(%s)", $self->_dumper($deleted)), filter => sub{$_[0] =~ s/^\'(.*)\'$/$1/; $_[0] =~s /\\'/'/g})  unless $QUIET;
+  $self->_carpit(point => $p,
+                 value => sprintf("DELETED(%s)", $self->_dumper(defined $deleted ? $deleted : "undef")),
+                 filter => sub{$_[0] =~ s/^\'(.*)\'$/$1/; $_[0] =~s /\\'/'/g}
+                )  unless $QUIET;
   return $deleted;
 }
 
@@ -457,11 +462,11 @@ Tie::Trace - easy print debugging with tie, for watching variable
 
 =head1 VERSION
 
-Version 0.13
+Version 0.14
 
 =cut
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 =head1 SYNOPSIS
 

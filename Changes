@@ -1,5 +1,8 @@
 Revision history for Tie-Trace
 
+0.14	2009-12-29 02:41
+	fix bug: problem occured when deleted value of hash is undef.
+ 
 0.13    2009-12-02 05:00:00
  	implement CLEAR method for Hash and Array.
    	implement STORESIZE method for Array.

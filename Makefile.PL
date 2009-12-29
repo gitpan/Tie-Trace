@@ -9,7 +9,7 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/Tie/Trace.pm',
     PL_FILES            => {},
     PREREQ_PM => {
-        'Test::More' => 0,
+        'Test::More' => '0.88',
         'Test::Base' => 0,
 	'PadWalker'  => 0,
     },

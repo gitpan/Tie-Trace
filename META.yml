@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Tie-Trace
-version:            0.13
+version:            0.14
 abstract:           easy print debugging with tie, for watching variable
 author:
     - Ktat <ktat@cpan.org>
@@ -13,7 +13,7 @@ build_requires:
 requires:
     PadWalker:   0
     Test::Base:  0
-    Test::More:  0
+    Test::More:  0.88
 no_index:
     directory:
         - t
